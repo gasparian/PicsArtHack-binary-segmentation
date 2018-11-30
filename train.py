@@ -1,4 +1,3 @@
-
 import os
 import shutil
 import pickle
@@ -7,9 +6,11 @@ from tqdm import tqdm
 import numpy as np
 from numpy.random import RandomState
 import matplotlib.pyplot as plt
+from skimage.morphology import remove_small_objects, remove_small_holes
 
 import torch
 from torch.utils import data
+from torchvision import transforms
 from torch.autograd import Variable
 
 def save_checkpoint(checkpoint_path, model, optimizer):
@@ -86,6 +87,11 @@ class Trainer:
         self.path = os.path.join(self.directory, self.model_name)
         self.device_idx = kwargs["device_idx"]
         self.ADAM = kwargs["ADAM"]
+        self.norm = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+            ])
         
         self.cp_counter_loss, self.cp_counter_metric = 0, 0
         self.max_lr = .5
@@ -360,6 +366,32 @@ class Trainer:
         if path is None:            
             path = self.path+'/tgs-%s_checkpoint_%s.pth' % (self.model_name, mode)
         load_checkpoint(path, self.model, load_optimizer)
+
+    def predict_crop(self, imgs):
+        torch.cuda.empty_cache()
+        if imgs.ndim < 4:
+            imgs = np.expand_dims(imgs, axis=0)
+        h, w, c = imgs[0].shape
+        all_predictions = np.empty((imgs.shape[0], h, w, c+1)).astype(np.uint8)
+        for i in range(imgs.shape[0]):
+            img = self.norm(cv2.resize(imgs[i], (256, 320), interpolation=cv2.INTER_LANCZOS4))
+            img = img.unsqueeze_(0)
+            img = img.type(torch.FloatTensor).cuda()
+            output = torch.nn.functional.sigmoid(self.model(Variable(img)))
+            output = output.cpu().data.numpy()
+            y_pred = np.squeeze(output[i])
+            y_pred = remove_small_holes(remove_small_objects(y_pred > .3)) # ???
+            y_pred = (y_pred * 255).astype(np.uint8)
+            y_pred = cv2.resize(y_pred, (w, h), interpolation=cv2.INTER_LANCZOS4)
+            
+            #y_pred = cv2.cvtColor(y_pred,cv2.COLOR_GRAY2BGR)
+            #y_pred = cv2.bitwise_and(imgs[i], y_pred.astype(np.uint8))
+            _,alpha = cv2.threshold(y_pred.astype(np.uint8),0,255,cv2.THRESH_BINARY)
+            b, g, r = cv2.split(imgs[i])
+            rgba = [b,g,r, alpha]
+            y_pred = cv2.merge(rgba,4)
+            all_predictions[i] = y_pred
+        return all_predictions
 
 if __name__ == "__main__":
 
