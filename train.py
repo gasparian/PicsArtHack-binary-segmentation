@@ -371,16 +371,18 @@ class Trainer:
         torch.cuda.empty_cache()
         if imgs.ndim < 4:
             imgs = np.expand_dims(imgs, axis=0)
-        h, w, c = imgs[0].shape
-        all_predictions = np.empty((imgs.shape[0], h, w, c+1)).astype(np.uint8)
+        l, h, w, c = imgs.shape
+        w_n = int(w/h * min(512, h))
+        h_n = min(512, h)
+        all_predictions = np.empty((l, h_n, w_n, c+1)).astype(np.uint8)
         for i in range(imgs.shape[0]):
             img = self.norm(cv2.resize(imgs[i], (256, 320), interpolation=cv2.INTER_LANCZOS4))
             img = img.unsqueeze_(0)
             img = img.type(torch.FloatTensor).cuda()
             output = torch.nn.functional.sigmoid(self.model(Variable(img)))
             output = output.cpu().data.numpy()
-            y_pred = np.squeeze(output[i])
-            y_pred = remove_small_holes(remove_small_objects(y_pred > .3)) # ???
+            y_pred = np.squeeze(output[0])
+            y_pred = remove_small_holes(remove_small_objects(y_pred > .3))
             y_pred = (y_pred * 255).astype(np.uint8)
             y_pred = cv2.resize(y_pred, (w, h), interpolation=cv2.INTER_LANCZOS4)
             
@@ -390,6 +392,7 @@ class Trainer:
             b, g, r = cv2.split(imgs[i])
             rgba = [b,g,r, alpha]
             y_pred = cv2.merge(rgba,4)
+            y_pred = cv2.resize(y_pred, (w_n, h_n), interpolation=cv2.INTER_LANCZOS4)
             all_predictions[i] = y_pred
         return all_predictions
 
