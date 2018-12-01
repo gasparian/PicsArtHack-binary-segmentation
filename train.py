@@ -11,6 +11,7 @@ from skimage.morphology import remove_small_objects, remove_small_holes
 import torch
 from torch.utils import data
 from torchvision import transforms
+import cv2
 from torch.autograd import Variable
 
 from model import *
@@ -22,7 +23,7 @@ def save_checkpoint(checkpoint_path, model, optimizer):
     print('model saved to %s' % checkpoint_path)
     
 def load_checkpoint(checkpoint_path, model, optimizer):
-    state = torch.load(checkpoint_path)
+    state = torch.load(checkpoint_path, map_location='cpu')
     model.load_state_dict(state['state_dict'])
     if optimizer:
         optimizer.load_state_dict(state['optimizer'])
@@ -125,7 +126,10 @@ class Trainer:
         
     def get_model(self, model):
         model = model.train()
-        return model.cuda(self.device_idx)
+        if torch.cuda.is_available():
+            return model.cuda(self.device_idx)
+        else:
+            return model
 
     def LR_finder(self, dataset, **kwargs):
         
@@ -379,7 +383,10 @@ class Trainer:
         for i in range(imgs.shape[0]):
             img = self.norm(cv2.resize(imgs[i], (256, 320), interpolation=cv2.INTER_LANCZOS4))
             img = img.unsqueeze_(0)
-            img = img.type(torch.FloatTensor).cuda()
+            if torch.cuda.is_available():
+                img = img.type(torch.FloatTensor).cuda()
+            else:
+                img = img.type(torch.FloatTensor)
             output = torch.nn.functional.sigmoid(self.model(Variable(img)))
             output = output.cpu().data.numpy()
             y_pred = np.squeeze(output[0])

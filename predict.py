@@ -29,7 +29,7 @@ while True:
         print("file not found")
         sys.exit(-1)
 
-    if file_path.split(".")[-1] == "png":
+    if file_path.split(".")[-1] != "mp4":
         imgs = cv2.imread(file_path)
         imgs = cv2.cvtColor(imgs, cv2.COLOR_BGR2RGB)
         imgs = np.array(imgs, dtype=np.uint8)

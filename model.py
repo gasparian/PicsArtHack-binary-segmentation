@@ -131,6 +131,7 @@ class UnetResNet(nn.Module):
         
         self.num_classes = num_classes
         self.Dropout = Dropout
+        res_blocks_dec = False
         self.res_blocks_dec = res_blocks_dec
         self.pool = nn.MaxPool2d(2, 2)
         self.relu = nn.ReLU(inplace=True)
