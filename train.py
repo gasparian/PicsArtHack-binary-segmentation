@@ -82,8 +82,11 @@ def leastsq(x, y):
 
 class Trainer:
     
-    def __init__(self, **kwargs):
+    def __init__(self, path=None, **kwargs):
         
+        if path is not None:
+            kwargs = pickle.load(open(path+"/model_params.pickle.dat", "rb"))
+            
         self.model_name = kwargs["model_name"]
         self.directory = kwargs["directory"]
         self.path = os.path.join(self.directory, self.model_name)
@@ -110,7 +113,7 @@ class Trainer:
             except:
                 pass
             os.mkdir(self.path)
-            self.reset = False
+            kwargs["reset"] = False
             pickle.dump(kwargs, open(self.path+"/model_params.pickle.dat", "wb"))
         else:
             self.model = self.get_model(self.initial_model)
@@ -118,11 +121,6 @@ class Trainer:
                 self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
             else:
                 self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-4, momentum=0.9, nesterov=True)
-            
-        
-    @staticmethod
-    def init_from_file(self, path):
-        return self.__init__(pickle.load(open(path+"/model_params.pickle.dat", "rb")))
         
     def get_model(self, model):
         model = model.train()
@@ -366,7 +364,7 @@ class Trainer:
     def load_state(self, path=None, mode="metric", load_optimizer=True):
         if load_optimizer: load_optimizer = self.optimizer
         if path is None:            
-            path = self.path+'/tgs-%s_checkpoint_%s.pth' % (self.model_name, mode)
+            path = self.path+'/%s_checkpoint_%s.pth' % (self.model_name, mode)
         load_checkpoint(path, self.model, load_optimizer)
 
     def predict_crop(self, imgs):
@@ -390,7 +388,6 @@ class Trainer:
             
             #y_pred = cv2.cvtColor(y_pred,cv2.COLOR_GRAY2BGR)
             #y_pred = cv2.bitwise_and(imgs[i], y_pred.astype(np.uint8))
-
             img = cv2.cvtColor(imgs[i], cv2.COLOR_RGB2BGR)
             _,alpha = cv2.threshold(y_pred.astype(np.uint8),0,255,cv2.THRESH_BINARY)
             b, g, r = cv2.split(imgs[i])
