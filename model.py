@@ -1,4 +1,4 @@
-from torch import nn, cat
+sfrom torch import nn, cat
 import torchvision
 import math
 
@@ -59,25 +59,16 @@ class DecoderBlockResnet(nn.Module):
     link https://distill.pub/2016/deconv-checkerboard/
     """
 
-    def __init__(self, in_channels, middle_channels, out_channels, is_deconv=True, res_blocks_dec=False):
+    def __init__(self, in_channels, middle_channels, out_channels, is_deconv=True):
         super(DecoderBlockResnet, self).__init__()
         self.in_channels = in_channels
-        self.res_blocks_dec = res_blocks_dec
+
 
         if is_deconv:
             layers_list = [ConvRelu(in_channels, middle_channels, activate=True, batchnorm=False)]
             
-            if self.res_blocks_dec:
-                residual_blocks = [
-                    ResidualBlock(middle_channels, middle_channels, batch_activate=False),
-                    ResidualBlock(middle_channels, middle_channels, batch_activate=True)
-                ]
-                
-                layers_list.extend(residual_blocks)
-            
             layers_list.append(nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=4, stride=2, padding=1))
-            if not self.res_blocks_dec:
-                layers_list.append(nn.ReLU(inplace=True))
+            layers_list.append(nn.ReLU(inplace=True))
             
             self.block = nn.Sequential(*layers_list)
 
@@ -131,7 +122,6 @@ class UnetResNet(nn.Module):
         
         self.num_classes = num_classes
         self.Dropout = Dropout
-        self.res_blocks_dec = res_blocks_dec
         self.pool = nn.MaxPool2d(2, 2)
         self.relu = nn.ReLU(inplace=True)
         self.conv1 = nn.Sequential(self.encoder.conv1,
@@ -144,18 +134,18 @@ class UnetResNet(nn.Module):
         self.conv5 = self.encoder.layer4
         
         self.center = DecoderBlockResnet(self.filters_dict[model][0], num_filters * 8 * 2, 
-                                         num_filters * 8, is_deconv, res_blocks_dec)
+                                         num_filters * 8, is_deconv)
         self.dec5 = DecoderBlockResnet(self.filters_dict[model][1] + num_filters * 8, 
-                                       num_filters * 8 * 2, num_filters * 8, is_deconv, res_blocks_dec)    
+                                       num_filters * 8 * 2, num_filters * 8, is_deconv)    
         self.dec4 = DecoderBlockResnet(self.filters_dict[model][2] + num_filters * 8, 
-                                       num_filters * 8 * 2, num_filters * 8, is_deconv, res_blocks_dec)
+                                       num_filters * 8 * 2, num_filters * 8, is_deconv)
         self.dec3 = DecoderBlockResnet(self.filters_dict[model][3] + num_filters * 8, 
-                                       num_filters * 4 * 2, num_filters * 2, is_deconv, res_blocks_dec)
+                                       num_filters * 4 * 2, num_filters * 2, is_deconv)
         self.dec2 = DecoderBlockResnet(self.filters_dict[model][4] + num_filters * 2, 
-                                       num_filters * 2 * 2, num_filters * 2 * 2, is_deconv, res_blocks_dec)
+                                       num_filters * 2 * 2, num_filters * 2 * 2, is_deconv)
         
         self.dec1 = DecoderBlockResnet(num_filters * 2 * 2, num_filters * 2 * 2, 
-                                       num_filters, is_deconv, res_blocks_dec)
+                                       num_filters, is_deconv)
         self.dec0 = ConvRelu(num_filters, num_filters)
         
         self.final = nn.Conv2d(num_filters, num_classes, kernel_size=1)
