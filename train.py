@@ -388,10 +388,12 @@ class Trainer:
             
             #y_pred = cv2.cvtColor(y_pred,cv2.COLOR_GRAY2BGR)
             #y_pred = cv2.bitwise_and(imgs[i], y_pred.astype(np.uint8))
+            
+            img = cv2.cvtColor(imgs[i], cv2.COLOR_RGB2BGR)
             _,alpha = cv2.threshold(y_pred.astype(np.uint8),0,255,cv2.THRESH_BINARY)
             b, g, r = cv2.split(imgs[i])
-            rgba = [b,g,r, alpha]
-            y_pred = cv2.merge(rgba,4)
+            bgra = [r,g,b, alpha]
+            y_pred = cv2.merge(bgra,4)
             y_pred = cv2.resize(y_pred, (w_n, h_n), interpolation=cv2.INTER_LANCZOS4)
             all_predictions[i] = y_pred
         return all_predictions
