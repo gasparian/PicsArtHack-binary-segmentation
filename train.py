@@ -13,6 +13,8 @@ from torch.utils import data
 from torchvision import transforms
 from torch.autograd import Variable
 
+from model import *
+
 def save_checkpoint(checkpoint_path, model, optimizer):
     state = {'state_dict': model.state_dict(),
              'optimizer' : optimizer.state_dict()}
@@ -388,7 +390,7 @@ class Trainer:
             
             #y_pred = cv2.cvtColor(y_pred,cv2.COLOR_GRAY2BGR)
             #y_pred = cv2.bitwise_and(imgs[i], y_pred.astype(np.uint8))
-            
+
             img = cv2.cvtColor(imgs[i], cv2.COLOR_RGB2BGR)
             _,alpha = cv2.threshold(y_pred.astype(np.uint8),0,255,cv2.THRESH_BINARY)
             b, g, r = cv2.split(imgs[i])
