@@ -86,6 +86,7 @@ class Trainer:
         
         if path is not None:
             kwargs = pickle.load(open(path+"/model_params.pickle.dat", "rb"))
+            kwargs["pretrained"] = False
             
         self.model_name = kwargs["model_name"]
         self.directory = kwargs["directory"]
