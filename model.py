@@ -59,9 +59,10 @@ class DecoderBlockResnet(nn.Module):
     link https://distill.pub/2016/deconv-checkerboard/
     """
 
-    def __init__(self, in_channels, middle_channels, out_channels, is_deconv=True):
+    def __init__(self, in_channels, middle_channels, out_channels, is_deconv=True, res_blocks_dec=False):
         super(DecoderBlockResnet, self).__init__()
         self.in_channels = in_channels
+        self.res_blocks_dec = res_blocks_dec
 
         if is_deconv:
             layers_list = [ConvRelu(in_channels, middle_channels, activate=True, batchnorm=False)]
@@ -98,7 +99,7 @@ class DecoderBlockResnet(nn.Module):
 class UnetResNet(nn.Module):
 
     def __init__(self, num_classes=1, num_filters=32, pretrained=True, is_deconv=True, 
-                       Dropout=.2, res_blocks_dec=False, model="resnet50"):
+                       Dropout=.2, model="resnet50"):
         """
         :param num_classes:
         :param num_filters:

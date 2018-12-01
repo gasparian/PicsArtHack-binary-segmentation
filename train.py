@@ -5,7 +5,7 @@ import pickle
 from tqdm import tqdm
 import numpy as np
 from numpy.random import RandomState
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from skimage.morphology import remove_small_objects, remove_small_holes
 
 import torch
