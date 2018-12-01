@@ -143,3 +143,38 @@ class DatasetProcessor(data.Dataset):
                 return image, file_id
 
 
+def split_video(filename, n_frames=20):
+    vidcap = cv2.VideoCapture(filename)
+    frames = []
+    succ, frame = vidcap.read()
+    h, w = frame.shape[:2]
+    center = (w / 2, h / 2)
+    while succ:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
+        frames.append(frame)
+        succ, frame = vidcap.read()
+    return np.array(frames).astype(np.uint8)[12:-12][::len(frames) // n_frames]
+
+def draw_transcription(out, transcription):
+    out_tmp = out.copy()
+    offset = 5
+    word_duration = len(out) // len(transcription)
+    scales = np.linspace(.1, 4, num=15)
+    word_id = 0
+    for n in range(out_tmp.shape[0]):
+        if n == word_duration:
+            word_id = min(len(transcription)-1, word_id + 1)
+        max_w_h = np.where(out_tmp[n, :, :, 3].sum(axis=1))[0][0] - offset*2
+        max_w_w = out_tmp[n].shape[1] - offset*2
+        for s in range(scales.shape[0]):
+            w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],cv2.FONT_HERSHEY_TRIPLEX,scales[s],3)[0]
+            if w_w_est > max_w_w or w_h_est > max_w_h:
+                idx = max(0, s-1)
+                w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],cv2.FONT_HERSHEY_TRIPLEX,scales[idx],3)[0]
+                break
+
+        font = cv2.FONT_HERSHEY_TRIPLEX
+        out_tmp[n] = cv2.putText(out_tmp[n], transcription[word_id], ((max_w_w - w_w_est) // 2,max_w_h), 
+                                 font, scales[idx], (0,0,0,255), 3, cv2.LINE_AA)
+    return out_tmp

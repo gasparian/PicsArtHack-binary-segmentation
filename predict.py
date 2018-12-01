@@ -9,6 +9,7 @@ import io
 import sys
 import datetime
 import subprocess
+import argparse
 
 import numpy as np
 import cv2
@@ -21,52 +22,23 @@ from google.oauth2 import service_account
 
 from train import *
 
-def split_video(filename, n_frames=20):
-    vidcap = cv2.VideoCapture(filename)
-    frames = []
-    succ, frame = vidcap.read()
-    h, w = frame.shape[:2]
-    center = (w / 2, h / 2)
-    while succ:
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
-        frames.append(frame)
-        succ, frame = vidcap.read()
-    return np.array(frames).astype(np.uint8)[12:-12][::len(frames) // n_frames]
 
-def draw_transcroption(out, transcription):
-    out_tmp = out.copy()
-    offset = 5
-    word_duration = len(out) // len(transcription)
-    scales = np.linspace(.1, 4, num=15)
-    word_id = 0
-    for n in range(out_tmp.shape[0]):
-        if n == word_duration:
-            word_id = min(len(transcription)-1, word_id + 1)
-        max_w_h = np.where(out_tmp[n, :, :, 3].sum(axis=1))[0][0] - offset*2
-        max_w_w = out_tmp[n].shape[1] - offset*2
-        for s in range(scales.shape[0]):
-            w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],cv2.FONT_HERSHEY_TRIPLEX,scales[s],3)[0]
-            if w_w_est > max_w_w or w_h_est > max_w_h:
-                idx = max(0, s-1)
-                w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],cv2.FONT_HERSHEY_TRIPLEX,scales[idx],3)[0]
-                break
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_path', type=str, required=True)
+parser.add_argument('--model_path', type=str, required=True)
+parser.add_argument('--google_api_keys_path', type=str, default=False, required=False)
+args = parser.parse_args()
+globals().update(vars(args))
 
-        font = cv2.FONT_HERSHEY_TRIPLEX
-        out_tmp[n] = cv2.putText(out_tmp[n], transcription[word_id], ((max_w_w - w_w_est) // 2,max_w_h), 
-                                 font, scales[idx], (0,0,0,255), 3, cv2.LINE_AA)
-    return out_tmp
+if google_api_keys_path:
+    credentials = service_account.Credentials.from_service_account_file(google_api_keys_path)
+    client = speech.SpeechClient(credentials=credentials)
+    config = types.RecognitionConfig(
+        encoding=enums.RecognitionConfig.AudioEncoding.LINEAR16,
+        sample_rate_hertz=16000,
+        language_code='en-US')
 
-
-credentials = service_account.Credentials.from_service_account_file(
-    "/data/data/PicsArtHack-9e8fe9a284be.json")
-client = speech.SpeechClient(credentials=credentials)
-config = types.RecognitionConfig(
-    encoding=enums.RecognitionConfig.AudioEncoding.LINEAR16,
-    sample_rate_hertz=16000,
-    language_code='en-US')
-
-trainer = Trainer(path="./data/resnet50_05BCE_no_CLR_50e_ADAM_no_weight")
+trainer = Trainer(path=model_path)
 trainer.load_state(mode="metric")
 
 while True:
@@ -81,16 +53,16 @@ while True:
         imgs = cv2.cvtColor(imgs, cv2.COLOR_BGR2RGB)
         imgs = np.array(imgs, dtype=np.uint8)
         out = trainer.predict_crop(imgs)
-        cv2.imwrite('./data/segmented.png', out[0])
+        cv2.imwrite('%s/segmented.png' % data_path, out[0])
 
     else:
         imgs = split_video(filename, n_frames=20)
         outs = trainer.predict_crop(imgs)
 
-        command = "ffmpeg -i ./data/hello_vid.mp4 -ab 160k -ac 1 -ar 16000 -vn ./data/audio.wav"
+        command = "ffmpeg -i %s/video.mp4 -ab 160k -ac 1 -ar 16000 -vn %s/audio.wav" % (data_path, data_path)
         subprocess.call(command, shell=True)
 
-        file_name = "/data/data/picsart1/data/audio.wav"
+        file_name = "%s/audio.wav" % data_path
         with io.open(file_name, 'rb') as audio_file:
             content = audio_file.read()
         audio = types.RecognitionAudio(content=content)
@@ -98,9 +70,9 @@ while True:
         response = client.recognize(config, audio)
         transcription = [result.alternatives[0].transcript for result in response.results]
         if len(transcription) > 0:
-            outs = draw_transcroption(outs, transcription)
+            outs = draw_transcription(outs, transcription)
 
         for i, out in enumerate(outs):
-            cv2.imwrite("/data/segmented_%i.png" % i)
+            cv2.imwrite("%s/segmented_%i.png" % (data_path, i))
 
     print("done")
