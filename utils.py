@@ -150,22 +150,45 @@ def split_video(filename, n_frames=20):
     center = (w / 2, h / 2)
     while succ:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        #frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
+        if h < w:   
+            frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
         frames.append(frame)
         succ, frame = vidcap.read()
     return np.array(frames).astype(np.uint8)[12:-12][::len(frames) // n_frames]
 
+def chunker(l, n):
+    length = len(l)
+    n = length // n
+    for i in range(0, length, n):
+        if length - i < 2*n:
+            yield l[i:]
+            break
+        else:
+            yield l[i:i + n]
+
 def draw_transcription(out, transcription):
     out_tmp = out.copy()
+    transcription = " ".join(transcription)
+    words_num = len(transcription.split())
+    if words_num > 2:
+        transcription = [" ".join(el) for el in chunker(transcription.split(), 2)]
+        if len(transcription[-1].split()) > 2:
+            tmp = transcription[-1].split()[-1]
+            transcription[-1] = " ".join(transcription[-1].split()[:-1])
+            transcription.append(tmp)
+    else:
+        transcription = transcription.split()
+        
     offset = 5
     word_duration = len(out) // len(transcription)
+    
     scales = np.linspace(.1, 4, num=15)
     word_id = 0
-    font = cv2.FONT_HERSHEY_SIMPLEX
+    font = cv2.FONT_HERSHEY_COMPLEX_SMALL
     #font = cv2.FONT_HERSHEY_TRIPLEX
     thickness = 2
     for n in range(out_tmp.shape[0]):
-        if n == word_duration:
+        if n >0 and n % word_duration == 0:
             word_id = min(len(transcription)-1, word_id + 1)
         max_w_h = np.where(out_tmp[n, :, :, 3].sum(axis=1))[0][0] - offset*2
         max_w_w = out_tmp[n].shape[1] - offset*2
