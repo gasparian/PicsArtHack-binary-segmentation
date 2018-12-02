@@ -72,7 +72,7 @@ while True:
         if len(transcription) > 0:
             outs = draw_transcription(outs, transcription)
 
-        for i, out in enumerate(outs):
-            cv2.imwrite("%s/segmented_%i.png" % (data_path, i))
+        for i, im in enumerate(outs):
+            cv2.imwrite("%s/segmented_%i.png" % (data_path, i), im)
 
     print("done")
