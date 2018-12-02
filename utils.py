@@ -142,7 +142,6 @@ class DatasetProcessor(data.Dataset):
                         image = self.transform(image)
                 return image, file_id
 
-
 def split_video(filename, n_frames=20):
     vidcap = cv2.VideoCapture(filename)
     frames = []
@@ -151,7 +150,7 @@ def split_video(filename, n_frames=20):
     center = (w / 2, h / 2)
     while succ:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
+        #frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
         frames.append(frame)
         succ, frame = vidcap.read()
     return np.array(frames).astype(np.uint8)[12:-12][::len(frames) // n_frames]
