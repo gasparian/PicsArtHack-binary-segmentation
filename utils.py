@@ -161,19 +161,21 @@ def draw_transcription(out, transcription):
     word_duration = len(out) // len(transcription)
     scales = np.linspace(.1, 4, num=15)
     word_id = 0
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    #font = cv2.FONT_HERSHEY_TRIPLEX
+    thickness = 2
     for n in range(out_tmp.shape[0]):
         if n == word_duration:
             word_id = min(len(transcription)-1, word_id + 1)
         max_w_h = np.where(out_tmp[n, :, :, 3].sum(axis=1))[0][0] - offset*2
         max_w_w = out_tmp[n].shape[1] - offset*2
         for s in range(scales.shape[0]):
-            w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],cv2.FONT_HERSHEY_TRIPLEX,scales[s],3)[0]
+            w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],font,scales[s],thickness)[0]
             if w_w_est > max_w_w or w_h_est > max_w_h:
                 idx = max(0, s-1)
-                w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],cv2.FONT_HERSHEY_TRIPLEX,scales[idx],3)[0]
+                w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],font,scales[idx],thickness)[0]
                 break
 
-        font = cv2.FONT_HERSHEY_TRIPLEX
         out_tmp[n] = cv2.putText(out_tmp[n], transcription[word_id], ((max_w_w - w_w_est) // 2,max_w_h), 
-                                 font, scales[idx], (0,0,0,255), 3, cv2.LINE_AA)
+                                 font, scales[idx], (0,0,0,255), thickness, cv2.LINE_AA)
     return out_tmp
