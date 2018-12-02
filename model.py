@@ -1,4 +1,4 @@
-sfrom torch import nn, cat
+from torch import nn, cat
 import torchvision
 import math
 

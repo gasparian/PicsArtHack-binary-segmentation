@@ -42,7 +42,7 @@ trainer = Trainer(path=model_path)
 trainer.load_state(mode="metric")
 
 while True:
-    file_path = sys.stdin.readline()[:-1]
+    file_path = sys.stdin.readline().strip()
     if not os.path.isfile(file_path):
         print(file_path)
         print("file not found")
