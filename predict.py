@@ -21,6 +21,7 @@ from google.cloud.speech import types
 from google.oauth2 import service_account
 
 from train import *
+from utils import *
 
 
 parser = argparse.ArgumentParser()
@@ -56,7 +57,7 @@ while True:
         cv2.imwrite('%s/segmented.png' % data_path, out[0])
 
     else:
-        imgs = split_video(filename, n_frames=20)
+        imgs = split_video(file_path, n_frames=20)
         outs = trainer.predict_crop(imgs)
 
         command = "ffmpeg -i %s/video.mp4 -ab 160k -ac 1 -ar 16000 -vn %s/audio.wav" % (data_path, data_path)
