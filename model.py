@@ -2,13 +2,6 @@ from torch import nn, cat
 import torchvision
 import math
 
-#########################################################################################
-# TO DO:
-# - add depthwise-seaprable convolution -> it will replace all Conv2d modules
-# - batchnorms in decoder?
-#
-#########################################################################################
-
 def conv3x3(in_, out):
     return nn.Conv2d(in_, out, 3, padding=1)
 
@@ -59,38 +52,22 @@ class DecoderBlockResnet(nn.Module):
     link https://distill.pub/2016/deconv-checkerboard/
     """
 
-    def __init__(self, in_channels, middle_channels, out_channels, is_deconv=True):
+    def __init__(self, in_channels, middle_channels, out_channels):
         super(DecoderBlockResnet, self).__init__()
         self.in_channels = in_channels
 
-
-        if is_deconv:
-            layers_list = [ConvRelu(in_channels, middle_channels, activate=True, batchnorm=False)]
-            
-            layers_list.append(nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=4, stride=2, padding=1))
-            layers_list.append(nn.ReLU(inplace=True))
-            
-            self.block = nn.Sequential(*layers_list)
-
-        else:
-            self.block = nn.Sequential(
-                nn.Upsample(scale_factor=2, 
-                            mode='bilinear',
-                            align_corners=True #torch 0.4 req.
-                           ),
-                ConvRelu(in_channels, middle_channels),
-                #nn.BatchNorm2d(middle_channels),
-                ConvRelu(middle_channels, out_channels),
-                #nn.BatchNorm2d(out_channels)
-            )
+        self.block = nn.Sequential(
+            ConvRelu(in_channels, middle_channels, activate=True, batchnorm=False),
+            nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(inplace=True)
+        )
 
     def forward(self, x):
         return self.block(x)
 
 class UnetResNet(nn.Module):
 
-    def __init__(self, num_classes=1, num_filters=32, pretrained=True, is_deconv=True, 
-                       Dropout=.2, model="resnet50"):
+    def __init__(self, num_classes=1, num_filters=32, pretrained=True, Dropout=.2, model="resnet50"):
         """
         :param num_classes:
         :param num_filters:
@@ -134,18 +111,17 @@ class UnetResNet(nn.Module):
         self.conv5 = self.encoder.layer4
         
         self.center = DecoderBlockResnet(self.filters_dict[model][0], num_filters * 8 * 2, 
-                                         num_filters * 8, is_deconv)
+                                         num_filters * 8)
         self.dec5 = DecoderBlockResnet(self.filters_dict[model][1] + num_filters * 8, 
-                                       num_filters * 8 * 2, num_filters * 8, is_deconv)    
+                                       num_filters * 8 * 2, num_filters * 8)    
         self.dec4 = DecoderBlockResnet(self.filters_dict[model][2] + num_filters * 8, 
-                                       num_filters * 8 * 2, num_filters * 8, is_deconv)
+                                       num_filters * 8 * 2, num_filters * 8)
         self.dec3 = DecoderBlockResnet(self.filters_dict[model][3] + num_filters * 8, 
-                                       num_filters * 4 * 2, num_filters * 2, is_deconv)
+                                       num_filters * 4 * 2, num_filters * 2)
         self.dec2 = DecoderBlockResnet(self.filters_dict[model][4] + num_filters * 2, 
-                                       num_filters * 2 * 2, num_filters * 2 * 2, is_deconv)
+                                       num_filters * 2 * 2, num_filters * 2 * 2)
         
-        self.dec1 = DecoderBlockResnet(num_filters * 2 * 2, num_filters * 2 * 2, 
-                                       num_filters, is_deconv)
+        self.dec1 = DecoderBlockResnet(num_filters * 2 * 2, num_filters * 2 * 2, num_filters)
         self.dec0 = ConvRelu(num_filters, num_filters)
         
         self.final = nn.Conv2d(num_filters, num_classes, kernel_size=1)
@@ -160,10 +136,10 @@ class UnetResNet(nn.Module):
         conv5 = self.dropout_2d(self.conv5(conv4))
 
         center = self.center(self.pool(conv5))
-        dec5 = self.dec5(cat([center, conv5], 1))
-        dec4 = self.dec4(cat([dec5, conv4], 1))
-        dec3 = self.dec3(cat([dec4, conv3], 1))
-        dec2 = self.dec2(cat([dec3, conv2], 1))
+        dec5 = self.dec5(torch.cat([center, conv5], 1))
+        dec4 = self.dec4(torch.cat([dec5, conv4], 1))
+        dec3 = self.dec3(torch.cat([dec4, conv3], 1))
+        dec2 = self.dec2(torch.cat([dec3, conv2], 1))
         dec2 = self.dropout_2d(dec2)
             
         dec1 = self.dec1(dec2)
@@ -173,19 +149,6 @@ class UnetResNet(nn.Module):
 
 ###########################################################################
 # Mobile Net
-###########################################################################
-
-# Example
-class depthwise_separable_conv(nn.Module):
-    def __init__(self, nin, nout):
-        super(depthwise_separable_conv, self).__init__()
-        self.depthwise = nn.Conv2d(nin, nin, kernel_size=3, padding=1, groups=nin)
-        self.pointwise = nn.Conv2d(nin, nout, kernel_size=1)
-
-    def forward(self, x):
-        out = self.depthwise(x)
-        out = self.pointwise(out)
-        return out
 ###########################################################################
 
 def conv_bn(inp, oup, stride):
@@ -315,3 +278,70 @@ class MobileNetV2(nn.Module):
                 n = m.weight.size(1)
                 m.weight.data.normal_(0, 0.01)
                 m.bias.data.zero_()
+
+class UnetMobilenetV2(nn.Module):
+
+    def __init__(self, num_classes=1, num_filters=32, pretrained=True,
+                 Dropout=.2, path='./data/mobilenet_v2.pth.tar'):
+        
+        super(UnetMobilenetV2, self).__init__()
+        self.encoder = MobileNetV2(n_class=1000)
+        state_dict = torch.load(path)
+        if pretrained:
+            self.encoder.load_state_dict(state_dict)
+        
+        self.num_classes = num_classes
+        self.Dropout = Dropout
+        self.pool = nn.MaxPool2d(2, 2)
+        self.relu = nn.ReLU(inplace=True)
+        
+        self.conv1 = self.encoder.features[:2]
+        self.conv2 = self.encoder.features[2:4]
+        self.conv3 = self.encoder.features[4:7]
+        self.conv4 = self.encoder.features[7:14]
+        self.conv5 = self.encoder.features[14:19]
+        
+        self.dconv1 = nn.ConvTranspose2d(1280, 96, 4, padding=1, stride=2)
+        self.invres1 = InvertedResidual(192, 96, 1, 6)
+
+        self.dconv2 = nn.ConvTranspose2d(96, 32, 4, padding=1, stride=2)
+        self.invres2 = InvertedResidual(64, 32, 1, 6)
+
+        self.dconv3 = nn.ConvTranspose2d(32, 24, 4, padding=1, stride=2)
+        self.invres3 = InvertedResidual(48, 24, 1, 6)
+
+        self.dconv4 = nn.ConvTranspose2d(24, 16, 4, padding=1, stride=2)
+        self.invres4 = InvertedResidual(32, 16, 1, 6)
+
+        self.conv_last = nn.Conv2d(16, 3, 1)
+        self.conv_score = nn.Conv2d(3, 1, 1)
+        
+        self.dropout_2d = nn.Dropout2d(p=self.Dropout)
+        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        
+
+    def forward(self, x, z=None):
+        conv1 = self.conv1(x)
+        conv2 = self.dropout_2d(self.conv2(conv1))
+        conv3 = self.dropout_2d(self.conv3(conv2))
+        conv4 = self.dropout_2d(self.conv4(conv3))
+        conv5 = self.dropout_2d(self.conv5(conv4))
+        
+        dec5 = cat([conv4, self.dconv1(conv5)], dim=1)
+        dec5 = self.invres1(dec5)
+        
+        dec4 = cat([conv3, self.dconv2(dec5)], dim=1)
+        dec4 = self.invres2(dec4)
+
+        dec3 = cat([conv2, self.dconv3(dec4)], dim=1)
+        dec3 = self.invres3(dec3)
+
+        dec2 = cat([conv1, self.dconv4(dec3)], dim=1)
+        dec2 = self.invres4(dec2)
+        dec2 = self.dropout_2d(dec2)
+
+        dec1 = self.conv_last(dec2)
+        dec0 = self.conv_score(dec1)
+        dec0 = self.upsample(dec0)
+        
+        return dec0

@@ -111,14 +111,14 @@ class DatasetProcessor(data.Dataset):
                 mask = torch.from_numpy(np.transpose(mask, (2, 0, 1)).astype('float32'))
                 mask_w = torch.from_numpy(np.transpose(mask_w, (2, 0, 1)).astype('float32'))
                 image = self.norm(image)
-                return image, mask, list([file_id]), mask_w
+                return image, mask, mask_w
 
             else:
                 image = cv2.imread(str(image_path))
                 image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                 image = cv2.resize(image, (256, 320), interpolation=cv2.INTER_LANCZOS4)
                 image = self.norm(image)
-                return image, list([file_id])
+                return image
             
         else:
             image = cv2.imread(str(image_path))
@@ -132,7 +132,7 @@ class DatasetProcessor(data.Dataset):
                         self.been.append(file_id)
                     else:
                         image, mask = self.transform(image, mask)
-                return image, mask, file_id
+                return image, mask
             
             else:
                 if self.augmentations:
@@ -140,65 +140,443 @@ class DatasetProcessor(data.Dataset):
                         self.been.append(file_id)
                     else:
                         image = self.transform(image)
-                return image, file_id
+                return image
 
-def split_video(filename, n_frames=20):
-    vidcap = cv2.VideoCapture(filename)
-    frames = []
-    succ, frame = vidcap.read()
-    h, w = frame.shape[:2]
-    center = (w / 2, h / 2)
-    while succ:
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        if h < w:   
-            frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
-        frames.append(frame)
-        succ, frame = vidcap.read()
-    return np.array(frames).astype(np.uint8)[12:-12][::len(frames) // n_frames]
-
-def chunker(l, n):
-    length = len(l)
-    n = length // n
-    for i in range(0, length, n):
-        if length - i < 2*n:
-            yield l[i:]
-            break
-        else:
-            yield l[i:i + n]
-
-def draw_transcription(out, transcription):
-    out_tmp = out.copy()
-    transcription = " ".join(transcription)
-    words_num = len(transcription.split())
-    if words_num > 2:
-        transcription = [" ".join(el) for el in chunker(transcription.split(), 2)]
-        if len(transcription[-1].split()) > 2:
-            tmp = transcription[-1].split()[-1]
-            transcription[-1] = " ".join(transcription[-1].split()[:-1])
-            transcription.append(tmp)
-    else:
-        transcription = transcription.split()
-        
-    offset = 5
-    word_duration = len(out) // len(transcription)
+def save_checkpoint(checkpoint_path, model, optimizer):
+    state = {'state_dict': model.state_dict(),
+             'optimizer' : optimizer.state_dict()}
+    torch.save(state, checkpoint_path)
+    print('model saved to %s' % checkpoint_path)
     
-    scales = np.linspace(.1, 4, num=15)
-    word_id = 0
-    font = cv2.FONT_HERSHEY_COMPLEX_SMALL
-    #font = cv2.FONT_HERSHEY_TRIPLEX
-    thickness = 2
-    for n in range(out_tmp.shape[0]):
-        if n >0 and n % word_duration == 0:
-            word_id = min(len(transcription)-1, word_id + 1)
-        max_w_h = np.where(out_tmp[n, :, :, 3].sum(axis=1))[0][0] - offset*2
-        max_w_w = out_tmp[n].shape[1] - offset*2
-        for s in range(scales.shape[0]):
-            w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],font,scales[s],thickness)[0]
-            if w_w_est > max_w_w or w_h_est > max_w_h:
-                idx = max(0, s-1)
-                w_w_est, w_h_est = cv2.getTextSize(transcription[word_id],font,scales[idx],thickness)[0]
-                break
+def load_checkpoint(checkpoint_path, model, optimizer, cpu):
+    if cpu:
+        state = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
+    else:
+        state = torch.load(checkpoint_path)
+    model.load_state_dict(state['state_dict'])
+    if optimizer:
+        optimizer.load_state_dict(state['optimizer'])
+    print('model loaded from %s' % checkpoint_path)
 
-        out_tmp[n] = cv2.putText(out_tmp[n], transcription[word_id], ((max_w_w - w_w_est) // 2,max_w_h), 
-                                 font, scales[idx], (0,0,0,255), thickness, cv2.LINE_AA)
-    return out_tmp
+def jaccard(intersection, union, eps=1e-15):
+    return (intersection + eps) / (union - intersection + eps)
+
+def dice(intersection, union, eps=1e-15):
+    return (2. * intersection + eps) / (union + eps)
+
+class BCESoftJaccardDice:
+
+    def __init__(self, bce_weight=0.5, mode="dice", eps=1e-15, weight=None):
+        self.nll_loss = torch.nn.BCEWithLogitsLoss(weight=weight)
+        self.bce_weight = bce_weight
+        self.eps = eps
+        self.mode = mode
+
+    def __call__(self, outputs, targets):
+        loss = self.bce_weight * self.nll_loss(outputs, targets)
+
+        if self.bce_weight < 1.:
+            targets = (targets == 1).float()
+            outputs = torch.nn.functional.sigmoid(outputs)
+            intersection = (outputs * targets).sum()
+            union = outputs.sum() + targets.sum()
+            if self.mode == "dice":
+                score = dice(intersection, union, self.eps)
+            elif self.mode == "jaccard":
+                score = jaccard(intersection, union, self.eps)
+            loss -= (1 - self.bce_weight) * torch.log(score)
+        return loss
+    
+def get_metric(pred, targets):
+    batch_size = targets.shape[0]
+    metric = []
+    for batch in range(batch_size):
+        t, p = targets[batch].squeeze(1), pred[batch].squeeze(1)
+        if np.count_nonzero(t) == 0 and np.count_nonzero(p) > 0:
+            metric.append(0)
+            continue
+        if np.count_nonzero(t) == 0 and np.count_nonzero(p) == 0:
+            metric.append(1)
+            continue
+
+        t = (t == 1).float()
+        intersection = (p * t).sum()
+        union = p.sum() + t.sum()
+        m = dice(intersection, union, eps=1e-15)
+        metric.append(m)
+    return np.mean(metric)
+
+def leastsq(x, y):
+    y = (y - np.mean(y)) / np.std(y)
+    a = np.vstack([x, np.ones(len(x))]).T
+    return np.dot(np.linalg.inv(np.dot(a.T, a)), np.dot(a.T, y))
+
+class Trainer:
+    
+    def __init__(self, path=None, cpu=False, **kwargs):
+        
+        if path is not None:
+            kwargs = pickle.load(open(path+"/model_params.pickle.dat", "rb"))
+            kwargs["pretrained"] = False
+            
+        self.cpu = cpu
+        self.model_name = kwargs["model_name"]
+        self.directory = kwargs["directory"]
+        self.path = os.path.join(self.directory, self.model_name)
+        self.device_idx = kwargs["device_idx"]
+        self.ADAM = kwargs["ADAM"]
+        self.pretrained = kwargs["pretrained"]
+        self.norm = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                 std=[0.229, 0.224, 0.225])
+            ])
+        
+        self.cp_counter_loss, self.cp_counter_metric = 0, 0
+        self.max_lr = .5
+        
+        net_init_params = {k:v for k, v in kwargs.items() 
+            if k in ["Dropout", "pretrained", "num_classes", "num_filters"]
+        }
+
+        if kwargs["model"] == "mobilenetV2":
+            self.initial_model = UnetMobilenetV2(**net_init_params)
+        else:
+            net_init_params["model"] = kwargs["model"]
+            self.initial_model = UnetResNet(**net_init_params)            
+       
+        if kwargs["reset"]:
+            try:
+                shutil.rmtree(self.path)
+            except:
+                pass
+            os.mkdir(self.path)
+            kwargs["reset"] = False
+            pickle.dump(kwargs, open(self.path+"/model_params.pickle.dat", "wb"))
+        else:
+            self.model = self.get_model(self.initial_model)
+            if self.ADAM:
+                self.optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
+            else:
+                self.optimizer = torch.optim.SGD(self.model.parameters(), lr=1e-4, momentum=0.9, nesterov=True)
+                
+    def dfs_freeze(self, model):
+        for name, child in model.named_children():
+            for param in child.parameters():
+                param.requires_grad = False if self.freeze_encoder else True
+            self.dfs_freeze(child)
+        
+    def get_model(self, model):
+        model = model.train()
+        if self.cpu:
+            return model.cpu()
+        return model.cuda(self.device_idx)
+
+    def LR_finder(self, dataset, **kwargs):
+        
+        max_lr = kwargs["max_lr"]
+        batch_size = kwargs["batch_size"]
+        learning_rate = kwargs["learning_rate"]
+        bce_loss_weight = kwargs["bce_loss_weight"]
+        loss_growth_trsh = kwargs["loss_growth_trsh"]
+        loss_window = kwargs["loss_window"]
+        wd = kwargs["wd"]
+        alpha = kwargs["alpha"]
+        
+        torch.cuda.empty_cache()
+        dataset.clear_buff()
+        self.model = self.get_model(self.initial_model)
+
+        iterations = len(dataset) // batch_size
+        it = 0
+        lr_mult = (max_lr/learning_rate)**(1/iterations)
+
+        if self.ADAM:
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        else:
+            optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, 
+                                        momentum=0.9, nesterov=True)
+
+        #max LR search
+        print(" [INFO] Start max. learning rate search... ")
+        min_loss, self.lr_finder_losses = (np.inf, learning_rate), [[], []]
+        for image, mask, mask_w in tqdm(data.DataLoader(dataset, batch_size = batch_size, shuffle = True, num_workers=0)):
+            image = image.type(torch.FloatTensor).cuda(self.device_idx)
+
+            it += 1
+            current_lr = learning_rate * (lr_mult**it)
+
+            y_pred = self.model(Variable(image))
+
+            loss_fn = BCESoftJaccardDice(bce_weight=bce_loss_weight, 
+                                         weight=mask_w.cuda(self.device_idx), mode="dice", eps=1.)
+            loss = loss_fn(y_pred, Variable(mask.cuda(self.device_idx)))
+
+            optimizer.zero_grad()
+            loss.backward()
+
+            #adjust learning rate and weights decay
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = current_lr
+                if wd:
+                    for param in param_group['params']:
+                        param.data = param.data.add(-wd * param_group['lr'], param.data)
+
+            optimizer.step()
+
+            if it > 1:
+                current_loss = alpha * loss.item() + (1 - alpha) * current_loss
+            else:
+                current_loss = loss.item()
+            
+            self.lr_finder_losses[0].append(current_loss)
+            self.lr_finder_losses[1].append(current_lr)
+            
+            if current_loss < min_loss[0]:
+                min_loss = (current_loss, current_lr)
+                    
+            if it >= loss_window:
+                if (current_loss - min_loss[0]) / min_loss[0] >= loss_growth_trsh:
+                    break
+            
+        self.max_lr = round(min_loss[1], 5)
+        print(" [INFO] max. lr = %.5f " % self.max_lr)
+        
+    def show_lr_finder_out(self, save_only=False):
+        if not save_only:
+            plt.show(block=False)
+        plt.semilogx(self.lr_finder_losses[1], self.lr_finder_losses[0])
+        plt.axvline(self.max_lr, c="gray")
+        plt.savefig(self.path + '/lr_finder_out.png')
+        
+    def fit(self, dataset, dataset_val, **kwargs):
+
+        epoch = kwargs["epoch"]
+        learning_rate = kwargs["learning_rate"]
+        batch_size = kwargs["batch_size"]
+        bce_loss_weight = kwargs["bce_loss_weight"]
+        CLR = kwargs["CLR"]
+        wd = kwargs["wd"]
+        reduce_lr_patience = kwargs["reduce_lr_patience"]
+        reduce_lr_factor = kwargs["reduce_lr_factor"]
+        max_lr_decay = kwargs["max_lr_decay"]
+        early_stop = kwargs["early_stop"]
+        self.freeze_encoder = kwargs["freeze_encoder"]
+
+        torch.cuda.empty_cache()
+        self.model = self.get_model(self.initial_model)
+        
+        if self.pretrained and self.freeze_encoder:
+            self.dfs_freeze(self.model.conv1)
+            self.dfs_freeze(self.model.conv2)
+            self.dfs_freeze(self.model.conv3)
+            self.dfs_freeze(self.model.conv4)
+            self.dfs_freeze(self.model.conv5)
+        
+        if self.ADAM:
+            self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), 
+                                              lr=learning_rate)
+        else:
+            self.optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), 
+                                             lr=learning_rate, momentum=0.9, nesterov=True)
+
+        max_lr = self.max_lr
+        iterations = len(dataset) // batch_size
+        if abs(CLR) == 1:
+            iterations *= epoch
+        lr_mult = (max_lr/learning_rate)**(1/iterations)
+        current_rate = learning_rate
+        
+        checkpoint_metric, checkpoint_loss, it, k, cooldown = -np.inf, np.inf, 0, 1, 0
+        x = np.arange(early_stop)
+        x = (x - x.mean()) / x.std()
+        self.history = {"loss":{"train":[], "test":[]}, "metric":{"train":[], "test":[]}}
+        
+        for e in range(epoch):
+            torch.cuda.empty_cache()
+                    
+            if e >= 2 and self.freeze_encoder:
+                self.freeze_encoder = False
+                self.dfs_freeze(self.model.conv1)
+                self.dfs_freeze(self.model.conv2)
+                self.dfs_freeze(self.model.conv3)
+                self.dfs_freeze(self.model.conv4)
+                self.dfs_freeze(self.model.conv5)
+                
+                if self.ADAM:
+                    self.optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, self.model.parameters()), 
+                                                      lr=current_rate)
+                else:
+                    self.optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, self.model.parameters()), 
+                                                     lr=current_rate, momentum=0.9, nesterov=True)
+                
+            if reduce_lr_patience and reduce_lr_factor:
+                if not np.isinf(checkpoint_loss):
+                    if self.history["loss"]["test"][-1] >= checkpoint_loss:
+                        cooldown += 1
+
+                if cooldown == reduce_lr_patience:
+                    learning_rate *= reduce_lr_factor; max_lr *= reduce_lr_factor
+                    lr_mult = (max_lr/learning_rate)**(1/iterations)
+                    cooldown = 0
+                    print(" [INFO] Learning rate has been reduced to: %.7f " % learning_rate)
+            
+            dataset.clear_buff()
+            min_train_loss, train_loss, train_metric = np.inf, [], []
+            for image, mask, mask_w in tqdm(data.DataLoader(dataset, batch_size = batch_size, shuffle = True, num_workers=0)):
+                image = image.type(torch.FloatTensor).cuda(self.device_idx)
+
+                if abs(CLR):
+                    it += 1; exp = it
+                    if CLR > 0:
+                        exp = iterations*k - it + 1
+                    current_rate = learning_rate * (lr_mult**exp)
+                    
+                    if abs(CLR) > 1:
+                        if iterations*k / it == 1: 
+                            it = 0; k *= abs(CLR)
+                            if max_lr_decay < 1.:
+                                max_lr *= max_lr_decay
+                            lr_mult = (max_lr/learning_rate)**(1/(iterations*k))
+
+                            #re-init. optimzer to reset internal state
+                            if self.ADAM:
+                                self.optimizer = torch.optim.Adam(self.model.parameters(), lr=current_rate)
+                            else:
+                                self.optimizer = torch.optim.SGD(self.model.parameters(), 
+                                                                 lr=current_rate, momentum=0.9, nesterov=True)
+
+                y_pred = self.model(Variable(image))
+
+                loss_fn = BCESoftJaccardDice(bce_weight=bce_loss_weight, 
+                                             weight=mask_w.cuda(self.device_idx), mode="dice", eps=1.)
+                loss = loss_fn(y_pred, Variable(mask.cuda(self.device_idx)))
+
+                self.optimizer.zero_grad()
+                loss.backward()
+                
+                #adjust learning rate and weights decay
+                for param_group in self.optimizer.param_groups:
+                    try: param_group['lr'] = current_lr
+                    except: pass
+                    if wd:
+                        for param in param_group['params']:
+                            param.data = param.data.add(-wd * param_group['lr'], param.data)
+
+                self.optimizer.step()
+                if loss.item() < min_train_loss:
+                    min_train_loss = loss.item()
+                train_loss.append(loss.item())
+                train_metric.append(get_metric((y_pred.cpu() > 0.).float(), mask))
+                
+            del y_pred; del image; del mask_w; del mask; del loss
+
+            dataset_val.clear_buff()
+            torch.cuda.empty_cache()
+            val_loss, val_metric = [], []
+            for image, mask, mask_w in data.DataLoader(dataset_val, batch_size = batch_size // 2, shuffle = False, num_workers=0):
+                image = image.cuda(self.device_idx)
+
+                y_pred = self.model(Variable(image))
+                
+                loss_fn = BCESoftJaccardDice(bce_weight=bce_loss_weight, 
+                                             weight=mask_w.cuda(self.device_idx), mode="dice", eps=1.)
+                loss = loss_fn(y_pred, Variable(mask.cuda(self.device_idx)))
+
+                val_loss.append(loss.item())
+                val_metric.append(get_metric((y_pred.cpu() > 0.).float(), mask))
+                
+            del y_pred; del image; del mask_w; del mask; del loss
+
+            train_loss, train_metric, val_loss, val_metric = \
+                np.mean(train_loss), np.mean(train_metric), np.mean(val_loss), np.mean(val_metric)
+            
+            if val_loss < checkpoint_loss:
+                save_checkpoint(self.path+'/%s_checkpoint_loss.pth' % (self.model_name), self.model, self.optimizer)
+                checkpoint_loss = val_loss
+
+            if val_metric > checkpoint_metric:
+                save_checkpoint(self.path+'/%s_checkpoint_metric.pth' % (self.model_name), self.model, self.optimizer)
+                checkpoint_metric = val_metric
+
+            self.history["loss"]["train"].append(train_loss)
+            self.history["loss"]["test"].append(val_loss)
+            self.history["metric"]["train"].append(train_metric)
+            self.history["metric"]["test"].append(val_metric)
+
+            message = "Epoch: %d, Train loss: %.3f, Train metric: %.3f, Val loss: %.3f, Val metric: %.3f" % (
+                e, train_loss, train_metric, val_loss, val_metric)
+            print(message); os.system("echo " + message)
+            
+            if early_stop and e >= early_stop:
+                wlv, _ = np.round(leastsq(x, self.history["loss"]["test"][-early_stop:]), 4)
+                wlt, _ = np.round(leastsq(x, self.history["loss"]["train"][-early_stop:]), 4)
+                wmv, _ = np.round(leastsq(x, self.history["metric"]["test"][-early_stop:]), 4)
+                wmt, _ = np.round(leastsq(x, self.history["metric"]["train"][-early_stop:]), 4)
+                if wlv > 0 and wlt < 0 and wmt > 0 and wmv < 0:
+                    message = " [INFO] Learning stopped at %s# epoch! " % e
+                    print(message); os.system("echo " + message)
+                    break
+                    
+            self.current_epoch = e
+            save_checkpoint(self.path+'/last_checkpoint.pth', self.model, self.optimizer)
+            
+        pickle.dump(self.history, open(self.path+'/history.pickle.dat', 'wb'))
+        
+    def plot_trainer_history(self, mode="metric", save_only=False):
+        if not save_only:
+            plt.show(block=False)
+        plt.plot(self.history[mode]["train"], label="train")
+        plt.plot(self.history[mode]["test"], label="val")
+        plt.xlabel("epoch")
+        plt.ylabel(mode)
+        plt.grid(True)
+        plt.legend(loc="best")
+        plt.savefig(self.path + '/%s_history.png' % mode)
+        
+    def load_state(self, path=None, mode="metric", load_optimizer=True):
+        if load_optimizer: load_optimizer = self.optimizer
+        if path is None:            
+            path = self.path+'/%s_checkpoint_%s.pth' % (self.model_name, mode)
+        load_checkpoint(path, self.model, load_optimizer, self.cpu)
+
+    def predict_mask(self, imgs, biggest_side=None):
+        if not self.cpu:
+            torch.cuda.empty_cache()
+        if imgs.ndim < 4:
+            imgs = np.expand_dims(imgs, axis=0)
+        l, h, w, c = imgs.shape
+        if biggest_side is None: biggest_side = 320
+        w_n = int(w/h * min(biggest_side, h))
+        h_n = min(biggest_side, h)
+        
+        wd, hd = w_n % 32, h_n % 32
+        if wd != 0: w_n += 32 - wd
+        if hd != 0: h_n += 32 - hd
+        
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
+        all_predictions = np.empty((l, h_n, w_n, c+1)).astype(np.uint8)
+        for i in range(imgs.shape[0]):
+            img = self.norm(cv2.resize(imgs[i], (w_n, h_n), interpolation=cv2.INTER_LANCZOS4))
+            img = img.unsqueeze_(0)
+            if not self.cpu:
+                img = img.type(torch.FloatTensor).cuda()
+            else:
+                img = img.type(torch.FloatTensor)
+            output = torch.nn.functional.sigmoid(self.model(Variable(img)))
+            output = output.cpu().data.numpy()
+            y_pred = np.squeeze(output[0])
+            y_pred = remove_small_holes(remove_small_objects(y_pred > .3))
+            y_pred = (y_pred * 255).astype(np.uint8)
+            y_pred = cv2.resize(y_pred, (w, h), interpolation=cv2.INTER_LANCZOS4)
+            
+            img = cv2.cvtColor(imgs[i], cv2.COLOR_RGB2BGR)
+            _,alpha = cv2.threshold(y_pred.astype(np.uint8),0,255,cv2.THRESH_BINARY)
+            b, g, r = cv2.split(imgs[i])
+            bgra = [r,g,b, alpha]
+            y_pred = cv2.merge(bgra,4)
+            y_pred = cv2.resize(y_pred, (w_n, h_n), interpolation=cv2.INTER_LANCZOS4)
+            #denoise mask borders
+            y_pred[:, :, -1] = cv2.morphologyEx(y_pred[:, :, -1], cv2.MORPH_OPEN, kernel)
+            all_predictions[i] = y_pred
+        return all_predictions
