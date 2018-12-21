@@ -1,19 +1,7 @@
 import os
-import shutil
-import pickle
 import argparse
 
-from tqdm import tqdm
-import numpy as np
-import cv2
 from numpy.random import RandomState
-#import matplotlib.pyplot as plt
-from skimage.morphology import remove_small_objects, remove_small_holes
-
-import torch
-from torch.utils import data
-from torchvision import transforms
-from torch.autograd import Variable
 
 from model import *
 from utils import *

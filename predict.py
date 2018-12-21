@@ -1,68 +1,55 @@
-# Requirements:
-# apt update && apt install -y ffmpeg
-# pip install -U protobuf 
-# pip install --upgrade google-cloud-speech
-# Copy credentials *.json!
-
 import os
 import io
 import sys
+import time
 import datetime
 import subprocess
 import argparse
 
 import numpy as np
 import cv2
-import imageio
 
-from google.cloud import speech
-from google.cloud.speech import enums
-from google.cloud.speech import types
-from google.oauth2 import service_account
-
-from train import *
 from utils import *
 
+# python3 predict.py -p ./test --model_path ./models/model --gpu -1
+
+start = time.time()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_path', type=str, required=True)
+parser.add_argument('-p', '--data_path', type=str, required=True)
 parser.add_argument('--model_path', type=str, required=True)
-parser.add_argument('--google_api_keys_path', type=str, default=False, required=False)
+parser.add_argument('--gpu', type=int, default=-1, required=False)
 args = parser.parse_args()
 globals().update(vars(args))
 
-trainer = Trainer(path=model_path)
+trainer = Trainer(path=model_path, gpu=gpu)
 trainer.load_state(mode="metric")
 
-file_path = sys.stdin.readline().strip()
-if not os.path.isfile(file_path):
-    print(file_path)
-    print("file not found")
-    sys.exit(-1)
+files_list = os.listdir(data_path)
 
-if file_path.split(".")[-1] != "mp4":
-    imgs = cv2.imread(file_path)
-    imgs = cv2.cvtColor(imgs, cv2.COLOR_BGR2RGB)
-    imgs = np.array(imgs, dtype=np.uint8)
-    out = trainer.predict_crop(imgs)
-    cv2.imwrite('%s/segmented.png' % data_path, out[0])
+images, vids = [], []
+if files_list:
+    for fname in files_list:    
+        if fname.split(".")[-1] != "mp4": images.append(fname)
+        elif fname.split(".")[-1] == "mp4": vids.append(fname)
 
-else:
-    imgs = split_video(file_path, n_frames=20)
-    outs = trainer.predict_crop(imgs)
+    if images:
+        for fname in images:
+            img = cv2.imread(data_path+"/"+fname)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = np.array(img, dtype=np.uint8)
+            out = trainer.predict_mask(img, biggest_side=None, denoise_borders=False)
+            cv2.imwrite('%s/%s_seg.png' % (data_path, fname.split(".")[0]), out[0])
+        print(" [INFO] Images processed! ")
 
-    command = "ffmpeg -i %s/video.mp4 -ab 160k -ac 1 -ar 16000 -vn %s/audio.wav" % (data_path, data_path)
-    subprocess.call(command, shell=True)
+    if vids:
+        for fname in vids:
+            imgs = split_video(data_path+"/"+fname, frame_rate=12)
+            out = trainer.predict_mask(imgs, biggest_side=None, denoise_borders=False)
+            vpath = data_path+"/%s" % fname.split(".")[0]
+            os.mkdir(vpath)
+            save_images(out, path=vpath)
+            os.system(f"convert -delay 7 -loop 0 -dispose Background {vpath}/*.png {vpath}/{fname.split('.')[0]}.gif")
+        print(" [INFO] Videos processed! ")
 
-    file_name = "%s/audio.wav" % data_path
-    with io.open(file_name, 'rb') as audio_file:
-        content = audio_file.read()
-    audio = types.RecognitionAudio(content=content)
-
-    response = client.recognize(config, audio)
-    transcription = [result.alternatives[0].transcript for result in response.results]
-    if len(transcription) > 0:
-        outs = draw_transcription(outs, transcription)
-
-    for i, im in enumerate(outs):
-        cv2.imwrite("%s/segmented_%i.png" % (data_path, i), im)
+print(" [INFO] %s ms. " % round((time.time()-start)*1000, 0))

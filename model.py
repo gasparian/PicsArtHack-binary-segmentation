@@ -1,3 +1,4 @@
+import torch
 from torch import nn, cat
 import torchvision
 import math
@@ -286,8 +287,8 @@ class UnetMobilenetV2(nn.Module):
         
         super(UnetMobilenetV2, self).__init__()
         self.encoder = MobileNetV2(n_class=1000)
-        state_dict = torch.load(path)
         if pretrained:
+            state_dict = torch.load(path)
             self.encoder.load_state_dict(state_dict)
         
         self.num_classes = num_classes

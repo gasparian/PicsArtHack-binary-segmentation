@@ -1,6 +1,10 @@
 from __future__ import print_function, division
 import os
+import string
+import itertools
+import pickle
 
+from skimage.morphology import remove_small_objects, remove_small_holes
 import cv2
 from tqdm import tqdm
 import numpy as np
@@ -30,6 +34,9 @@ from albumentations import (
 import torch
 from torchvision import transforms
 from torch.utils import data
+from torch.autograd import Variable
+
+from model import *
 
 class DatasetProcessor(data.Dataset):
     
@@ -213,17 +220,19 @@ def leastsq(x, y):
 
 class Trainer:
     
-    def __init__(self, path=None, cpu=False, **kwargs):
+    def __init__(self, path=None, gpu=-1, **kwargs):
         
         if path is not None:
             kwargs = pickle.load(open(path+"/model_params.pickle.dat", "rb"))
+            kwargs["device_idx"] = gpu
             kwargs["pretrained"] = False
-            
-        self.cpu = cpu
+            kwargs["directory"] = "/".join(path.split("/")[:-1])
+             
         self.model_name = kwargs["model_name"]
         self.directory = kwargs["directory"]
         self.path = os.path.join(self.directory, self.model_name)
         self.device_idx = kwargs["device_idx"]
+        self.cpu = True if self.device_idx < 0 else False
         self.ADAM = kwargs["ADAM"]
         self.pretrained = kwargs["pretrained"]
         self.norm = transforms.Compose([
@@ -540,7 +549,7 @@ class Trainer:
             path = self.path+'/%s_checkpoint_%s.pth' % (self.model_name, mode)
         load_checkpoint(path, self.model, load_optimizer, self.cpu)
 
-    def predict_mask(self, imgs, biggest_side=None):
+    def predict_mask(self, imgs, biggest_side=None, denoise_borders=False):
         if not self.cpu:
             torch.cuda.empty_cache()
         if imgs.ndim < 4:
@@ -555,12 +564,12 @@ class Trainer:
         if hd != 0: h_n += 32 - hd
         
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-        all_predictions = np.empty((l, h_n, w_n, c+1)).astype(np.uint8)
+        all_predictions = []
         for i in range(imgs.shape[0]):
             img = self.norm(cv2.resize(imgs[i], (w_n, h_n), interpolation=cv2.INTER_LANCZOS4))
             img = img.unsqueeze_(0)
             if not self.cpu:
-                img = img.type(torch.FloatTensor).cuda()
+                img = img.type(torch.FloatTensor).cuda(self.device_idx)
             else:
                 img = img.type(torch.FloatTensor)
             output = torch.nn.functional.sigmoid(self.model(Variable(img)))
@@ -570,13 +579,44 @@ class Trainer:
             y_pred = (y_pred * 255).astype(np.uint8)
             y_pred = cv2.resize(y_pred, (w, h), interpolation=cv2.INTER_LANCZOS4)
             
-            img = cv2.cvtColor(imgs[i], cv2.COLOR_RGB2BGR)
             _,alpha = cv2.threshold(y_pred.astype(np.uint8),0,255,cv2.THRESH_BINARY)
             b, g, r = cv2.split(imgs[i])
             bgra = [r,g,b, alpha]
             y_pred = cv2.merge(bgra,4)
-            y_pred = cv2.resize(y_pred, (w_n, h_n), interpolation=cv2.INTER_LANCZOS4)
-            #denoise mask borders
-            y_pred[:, :, -1] = cv2.morphologyEx(y_pred[:, :, -1], cv2.MORPH_OPEN, kernel)
-            all_predictions[i] = y_pred
+            if denoise_borders:
+                #denoise mask borders
+                y_pred[:, :, -1] = cv2.morphologyEx(y_pred[:, :, -1], cv2.MORPH_OPEN, kernel)
+            all_predictions.append(y_pred)
         return all_predictions
+
+def split_video(filename, frame_rate=12):
+    vidcap = cv2.VideoCapture(filename)
+    frames = []
+    succ, frame = vidcap.read()
+    h, w = frame.shape[:2]
+    center = (w / 2, h / 2)
+    while succ:
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
+        frames.append(frame)
+        succ, frame = vidcap.read()
+    return np.array(frames).astype(np.uint8)[12:-12][::24 // frame_rate]
+
+def factorial(n):
+    if n == 0:
+        return 1
+    else:
+        return n * factorial(n-1)
+
+def n_unique_permuts(n, r):
+    return factorial(n) / (factorial(r)*factorial(n-r))
+
+def save_images(out, path="./data/gif_test"):
+    letters = string.ascii_lowercase
+    r = 0; n_uniques = 0
+    while n_uniques < len(out):
+        r += 1
+        n_uniques = n_unique_permuts(len(letters), r)
+    names = list(itertools.combinations(letters, r))
+    for im, fname in zip(out, names[:len(out)]):
+        cv2.imwrite(path+"/%s.png" % ("".join(fname)), im)
