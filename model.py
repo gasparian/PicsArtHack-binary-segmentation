@@ -69,16 +69,6 @@ class DecoderBlockResnet(nn.Module):
 class UnetResNet(nn.Module):
 
     def __init__(self, num_classes=1, num_filters=32, pretrained=True, Dropout=.2, model="resnet50"):
-        """
-        :param num_classes:
-        :param num_filters:
-        :param pretrained:
-            False - no pre-trained network is used
-            True  - encoder is pre-trained with resnet50
-        :is_deconv:
-            False: bilinear interpolation is used in decoder
-            True: deconvolution is used in decoder
-        """
         
         super().__init__()
         if model == "resnet18":
