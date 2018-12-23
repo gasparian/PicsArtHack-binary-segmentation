@@ -600,7 +600,7 @@ def split_video(filename, frame_rate=12):
         frame = np.transpose(frame[:, ::-1, :], axes=[1,0,2])
         frames.append(frame)
         succ, frame = vidcap.read()
-    return np.array(frames).astype(np.uint8)[12:-12][::24 // frame_rate]
+    return np.array(frames).astype(np.uint8)[::24 // frame_rate]
 
 def factorial(n):
     if n == 0:
