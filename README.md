@@ -26,7 +26,8 @@ I used modification of **unet** (which is well recommended in binary semantic se
 You can check all training params inside `train.py`, but I want to point a couple things:
  - I freeze pretrained encoder's weights during the first two epochs to tune decoder weights only to decrease convergence time;
  - data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) lib;
- - Inside the `utils.py` code you can find learning rate scheduling, early stopping and some other useful hacks which can help to train networks in more efficient way. 
+ - Inside the `utils.py` code you can find learning rate scheduling, early stopping and some other useful hacks which can help to train networks in more efficient way.  
+
 So in the end I've got two trained models with close metric values on validation set.  
 I'll give a few numbers below:  
 
