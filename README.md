@@ -57,7 +57,8 @@ dst = cv2.add(cv2.bitwise_and(test_dataset[n], test_dataset[n], mask=out[0][:, :
 ```
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_orig.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_transformed.png">  
 
-And actually we can process videos too (see `predict.py`). Example below is a video made by me on a cellphone:
+And actually we can process videos too (see `predict.py`). Example below is a video made by me with a cellphone:  
+
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>  
 These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing).  
 
