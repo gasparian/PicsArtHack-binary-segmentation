@@ -62,3 +62,6 @@ Original             |  Segmented
 photos 320x256  
 
 [MobileNetV2 model](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing)  
+
+### 4. Environment  
+!!!!!!!!!!!!!!!!!!!
