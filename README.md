@@ -27,7 +27,7 @@ You can check all training params inside `train.py`, but I want to point a coupl
  - I freeze pretrained encoder's weights during the first two epochs to tune decoder weights only to decrease convergence time;
  - data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) lib;
  - Inside the `utils.py` code you can find learning rate scheduling, early stopping and some other useful hacks which can help to train networks in more efficient way. 
-So in the end I've got two trained models with close metric values on validation set. Here below I'll give few numbers:  
+So in the end I've got two trained models with close metric values on validation set. Here below I'll give a few numbers:  
 
 Characteristic | ResNet101             |  MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
@@ -42,14 +42,14 @@ MobileNetV2 evaluation process:
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_metric.png">  
 
 ### 3. Tests  
-Inference time comparison with input images 320x256 from test-set:  
+Inference time comparison with input images 320x256 from the test-set:  
 
 Device | ResNet101 | MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
 AMD Threadripper 1900X CPU (single process) | 2140 ms | 437 ms  
 GTX 1080Ti GPU | 43 ms | 24 ms  
 
-Additionaly we can somehow transform segmented images, for instance make a gaussian blur of background:
+Additionaly we can transform segmented images, for instance make a gaussian blur of a background:
 ```
 blurred = cv2.GaussianBlur(test_dataset[n],(21,21),0)
 dst = cv2.bitwise_and(blurred, blurred, mask=~out[0][:, :, -1])
@@ -64,4 +64,4 @@ And actually we can process videos too (see `predict.py`). Example below is a vi
 These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing).  
 
 ### 4. Environment  
-For your own experimnets I highly recommend using [Deepo](https://github.com/ufoym/deepo) as a fast way to deploy universal deep-learning environment inside a Docker container.  Other dependencies can be found in `requirements.txt`.  
+For your own experiments I highly recommend to use [Deepo](https://github.com/ufoym/deepo) as a fast way to deploy universal deep-learning environment inside a Docker container.  Other dependencies can be found in `requirements.txt`.  
