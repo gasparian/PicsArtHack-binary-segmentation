@@ -40,6 +40,13 @@ ResNet101 evaluation process:
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_metric.png">  
 MobileNetV2 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_metric.png">  
+### 3. Tests  
+Inference time comparison:  
+
+Device | ResNet101 | MobileNetV2  
+:-------------------------:|:-------------------------:|:-------------------------:  
+AMD Threadripper CPU | 2140 ms | 437 ms  
+GTX 1080Ti GPU | 43 ms | 24 ms  
 
 ```
 blurred = cv2.GaussianBlur(test_dataset[n],(21,21),0)
@@ -52,16 +59,6 @@ Original             |  Segmented
 :-------------------------:|:-------------------------:
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  |  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>      
 
-resnet101: 44,549,160
-mobilenetV2: 6,906,767
+photos 320x256  
 
-photos 320x256
-
-437 ms cpu mobilenetv2
-2140 ms cpu resnet101
-~5x slower
-
-24 ms gpu mobilenetv2
-43 ms gpu resnet101
-~2x slower
 [MobileNetV2 model](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing)  
