@@ -5,14 +5,14 @@ Here I publish results of the first stage: segmenting people on photos.
 PicsArt gives us labeled [dataset](https://drive.google.com/file/d/1_e2DcZnjufx35uSmQElN5mpdo-Rlv7ZI/view?usp=sharing).  
 [Dice](https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient) coef. was used as evaluation metric.  
 
-### 1. Loss.  
+### 1. Loss  
 For this problem I used fairly common bce-dice loss. So the algorithm is simple: we take a logits output from model and put it inside binary cross-enthropy loss and the natural logarithm of dice loss (after passing sigmoid function). After that we only need to combine these losses with weights:
 ```
 dice_loss = (2. * intersection + eps) / (union + eps)
 loss = w * BCELoss + (1 - w) * log(dice_loss) * (-1)
 ```  
 Also, after applying this loss, we don't need to tune tresholds of final pseudo-probabilities (after sigmoid).  
-Finally we can adjust weight on mask (I do it inside BCELoss), to penalize model for mistakes around the mask borders. For this purpose we can use opencv window-operation called `erode`:
+Finally we can adjust weight on mask (I do it inside BCELoss), to penalize model for mistakes around the mask borders. For this purpose we can use opencv kernel-operation called `erode`:
 ```
 def get_mask_weight(mask):
     mask_ = cv2.erode(mask, kernel=np.ones((8,8),np.uint8), iterations=1)
@@ -21,11 +21,24 @@ def get_mask_weight(mask):
 ```  
 On the picture below we can see how input data looks like:    
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/example_1.png">  
+### 2. Training  
+I used modification of **unet** (which is well recommended in binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. My goal was to compare the performance of "heavy" and light encoders (actually in the case of mobilenet, depthwise-separable convolutions were used in decoder too).  
+You can check all training params inside `train.py`, but I want to point a couple things:
+ - I freeze pretrained encoder's weights during the first two epochs to tune decoder weights to decrease convergence time;
+ - data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) lib;
+ - Inside the `utils.py` code you can find learning rate scheduling, early stopping and some other useful hacks which can help to train networks in more efficient way. 
+So in the end I've got two trained models with close metric values on validation set. Here below I'll give few numbers:  
 
-Epoch: 34, Train loss: 0.033, Train metric: 0.984, Val loss: 0.040, Val metric: 0.982  
+Characteristic | ResNet101             |  MobileNetV2  
+:-------------------------:|:-------------------------:|:-------------------------:  
+epochs | 34 | 193  
+metric | 0.982 (0.984) | 0.980 (0.982)  
+loss | 0.040 (0.033) | 0.047 (0.038)  
+No. of parameters | 44 549 160 | 6 906 767  
+
+ResNet101 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_metric.png">  
-
-Epoch: 193, Train loss: 0.038, Train metric: 0.982, Val loss: 0.047, Val metric: 0.980  
+MobileNetV2 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_metric.png">  
 
 ```
