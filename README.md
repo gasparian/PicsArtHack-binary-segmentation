@@ -40,15 +40,16 @@ ResNet101 evaluation process:
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_metric.png">  
 MobileNetV2 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_metric.png">  
-### 3. Tests  
 
-Inference time comparison:  
+### 3. Tests  
+Inference time comparison with input images 320x256 from test-set:  
 
 Device | ResNet101 | MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
 AMD Threadripper 1900X CPU (single process) | 2140 ms | 437 ms  
 GTX 1080Ti GPU | 43 ms | 24 ms  
 
+Additionaly we can somehow transform segmented images, for instance make a gaussian blur of background:
 ```
 blurred = cv2.GaussianBlur(test_dataset[n],(21,21),0)
 dst = cv2.bitwise_and(blurred, blurred, mask=~out[0][:, :, -1])
@@ -56,11 +57,9 @@ dst = cv2.add(cv2.bitwise_and(test_dataset[n], test_dataset[n], mask=out[0][:, :
 ```
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_orig.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_transformed.png">  
 
-<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>      
-
-photos 320x256  
-
-[MobileNetV2 model](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing)  
+And actually we can process videos too (see `predict.py`). Example below is a video made by me on a cellphone:
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>  
+These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing).  
 
 ### 4. Environment  
-!!!!!!!!!!!!!!!!!!!
+For your own experimnets I highly recommend using [Deepo](https://github.com/ufoym/deepo) as a fast way to deploy universal deep-learning environment inside a Docker container.  Other dependencies can be found in `requirements.txt`.  
