@@ -15,6 +15,11 @@ Epoch: 34, Train loss: 0.033, Train metric: 0.984, Val loss: 0.040, Val metric: 
 Epoch: 193, Train loss: 0.038, Train metric: 0.982, Val loss: 0.047, Val metric: 0.980  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_metric.png">  
 
+```
+blurred = cv2.GaussianBlur(test_dataset[n],(21,21),0)
+dst = cv2.bitwise_and(blurred, blurred, mask=~out[0][:, :, -1])
+dst = cv2.add(cv2.bitwise_and(test_dataset[n], test_dataset[n], mask=out[0][:, :, -1]), dst)
+```
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_orig.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_transformed.png">  
 
 Original             |  Segmented
