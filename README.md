@@ -7,6 +7,20 @@ PicsArt gives us labeled [dataset](https://drive.google.com/file/d/1_e2DcZnjufx3
 
 [MobileNetV2 model](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing)  
 
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/example_1.png">  
+
+Epoch: 34, Train loss: 0.033, Train metric: 0.984, Val loss: 0.040, Val metric: 0.982  
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_metric.png">  
+
+Epoch: 193, Train loss: 0.038, Train metric: 0.982, Val loss: 0.047, Val metric: 0.980  
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_metric.png">  
+
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_orig.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_transformed.png">  
+
+Original             |  Segmented
+:-------------------------:|:-------------------------:
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  |  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>      
+
 resnet101: 44,549,160
 mobilenetV2: 6,906,767
 
