@@ -28,7 +28,7 @@ You can check all training params inside `train.py`, but I want to point a coupl
  - data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) library;
  - Inside the `utils.py` code you can find learning rate scheduling, early stopping and some other useful hacks which can help to train networks in more efficient way.  
 
-So in the end I've got two trained models with close metric values on validation set. Here is a few numbers:    
+So in the end I've got two trained models with close metric values on a validation set. Here is a few numbers:    
 
 Characteristic | ResNet101             |  MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
