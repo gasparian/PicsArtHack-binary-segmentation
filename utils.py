@@ -555,9 +555,10 @@ class Trainer:
         if imgs.ndim < 4:
             imgs = np.expand_dims(imgs, axis=0)
         l, h, w, c = imgs.shape
-        if biggest_side is None: biggest_side = 320
-        w_n = int(w/h * min(biggest_side, h))
-        h_n = min(biggest_side, h)
+        w_n, h_n = w, h
+        if biggest_side is not None: 
+            w_n = int(w/h * min(biggest_side, h))
+            h_n = min(biggest_side, h)
         
         wd, hd = w_n % 32, h_n % 32
         if wd != 0: w_n += 32 - wd
