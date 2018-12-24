@@ -50,6 +50,15 @@ Device | ResNet101 | MobileNetV2
 AMD Threadripper 1900X CPU (single process) | 2140 ms | 437 ms  
 GTX 1080Ti GPU | 43 ms | 24 ms  
 
+Often, output masks contain some noise on the borders, so we can try to fix it applying morhological transform: 
+```
+kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
+y_pred[:, :, -1] = cv2.morphologyEx(y_pred[:, :, -1], cv2.MORPH_OPEN, kernel)
+```  
+Original | Trnasformed  
+:-------------------------:|:-------------------------:
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_3_orig_mask.png"> | <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_3_edited_mask.png">  
+
 Additionaly we can transform segmented images, for instance make a gaussian blur of a background:
 ```
 blurred = cv2.GaussianBlur(test_dataset[n],(21,21),0)
@@ -58,11 +67,14 @@ dst = cv2.add(cv2.bitwise_and(test_dataset[n], test_dataset[n], mask=out[0][:, :
 ```
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_orig.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_transformed.png">  
 
-And actually we can process videos too (see `predict.py`). Example below is a video made by me with a cellphone:  
+And actually we can process videos too (see `predict.py`). Example below is a video made by me with a cellphone (img. size: 800x450):  
 
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>  
 
 These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing).  
 
-### 4. Environment  
+### 4. Porting to mobile device  
+--IN PROGRESS--
+
+### 5. Environment  
 For your own experiments I highly recommend to use [Deepo](https://github.com/ufoym/deepo) as a fast way to deploy universal deep-learning environment inside a Docker container.  Other dependencies can be found in `requirements.txt`.  
