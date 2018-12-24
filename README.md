@@ -33,7 +33,7 @@ So in the end I've got two trained models with close metric values on a validati
 Characteristic | ResNet101             |  MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
 epochs | 34 | 193  
-metric | 0.982 (0.984) | 0.980 (0.982)  
+Dice | 0.982 (0.984) | 0.980 (0.982)  
 loss | 0.040 (0.033) | 0.047 (0.038)  
 No. of parameters | 44 549 160 | 6 906 767  
 
