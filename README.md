@@ -73,7 +73,7 @@ And actually we can process videos too (see `predict.py`). Example below is a vi
 
 These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing).  
 
-### 4. Porting to mobile device  
+### 4. Porting model to IOS device  
 --IN PROGRESS--
 
 ### 5. Environment  
