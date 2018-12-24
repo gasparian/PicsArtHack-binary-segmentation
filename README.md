@@ -24,7 +24,7 @@ On the picture below we can see how input data looks like:
 ### 2. Training  
 I used modification of **unet** (which is well recommended in binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. My goal was to compare the performance of "heavy" and "light" encoders (actually in the case of mobilenet, depthwise-separable convolutions were used in decoder too).  
 You can check all training params inside `train.py`, but I want to point a couple things:
- - I freeze pretrained encoder's weights during the first two epochs to tune decoder weights only to decrease convergence time;
+ - In the case of training large models I freeze pretrained encoder's weights during the first two epochs to tune decoder weights only to decrease convergence time;
  - data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) library;
  - Inside the `utils.py` code you can find learning rate scheduling, early stopping and some other useful hacks which can help to train networks in more efficient way.  
 
