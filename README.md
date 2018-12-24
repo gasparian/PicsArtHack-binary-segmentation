@@ -1,4 +1,4 @@
-# PicsArt-Hack-binary_segmentation
+# PicsArtHack-binary-segmentation
 
 The goal of the hackathon was to build some image processing alogrithm which can be helpful for [PicsArt](https://picsart.com/?hl=en) applications.  
 Here I publish results of the first stage: segmenting people on photos.
