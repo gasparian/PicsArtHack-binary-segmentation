@@ -30,6 +30,7 @@ biggest_side = None if not biggest_side else biggest_side
 delay = round(100/frame_rate + .5)
 
 trainer = Trainer(path=model_path, gpu=gpu)
+torch.set_num_threads(2)
 trainer.load_state(mode="metric")
 
 files_list = os.listdir(data_path)
