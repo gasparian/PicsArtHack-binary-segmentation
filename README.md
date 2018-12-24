@@ -50,7 +50,7 @@ Device | ResNet101 | MobileNetV2
 AMD Threadripper 1900X CPU (2 threads) | 2190 ms | 395 ms  
 GTX 1080Ti GPU | 43 ms | 24 ms  
 
-Often, output masks contain some noise on the borders, so we can try to fix it applying morhological transform: 
+Often, output masks contain some noise on the borders (which is become more annoying on large images), so we can try to fix it applying morhological transform: 
 ```
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
 y_pred[:, :, -1] = cv2.morphologyEx(y_pred[:, :, -1], cv2.MORPH_OPEN, kernel)
