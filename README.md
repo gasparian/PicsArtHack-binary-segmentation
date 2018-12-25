@@ -30,7 +30,7 @@ You can check all training params inside `train.py`, but I want to point a coupl
 
 So in the end I've got two trained models with close metric values on a validation set. Here is a few numbers:    
 
-Characteristic | ResNet101             |  MobileNetV2  
+Encoder: | ResNet101             |  MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
 epochs | 34 | 193  
 Dice | 0.982 (0.984) | 0.980 (0.982)  
