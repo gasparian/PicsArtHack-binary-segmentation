@@ -35,7 +35,7 @@ Characteristic | ResNet101             |  MobileNetV2
 epochs | 34 | 193  
 Dice | 0.982 (0.984) | 0.980 (0.982)  
 loss | 0.040 (0.033) | 0.047 (0.038)  
-No. of parameters | 44 549 160 | 6 906 767  
+No. of parameters | 44 549 160 | 4 682 912  
 
 ResNet101 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_metric.png">  
