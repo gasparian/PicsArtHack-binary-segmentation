@@ -12,7 +12,7 @@ dice_loss = (2. * intersection + eps) / (union + eps)
 loss = w * BCELoss + (1 - w) * log(dice_loss) * (-1)
 ```  
 Also, after applying this loss, we don't need to tune tresholds of final pseudo-probabilities (after sigmoid).  
-Finally we can adjust weight on mask (I do it inside BCELoss), to penalize model for mistakes around the mask borders. For this purpose we can use opencv kernel-operation called `erode`:
+Finally we can adjust weight on mask (I do it inside BCELoss), to penalize model for mistakes around the mask borders. For this purpose we can use opencv erosion kernel-operation:
 ```
 def get_mask_weight(mask):
     mask_ = cv2.erode(mask, kernel=np.ones((8,8),np.uint8), iterations=1)
@@ -32,9 +32,9 @@ So in the end I've got two trained models with close metric values on a validati
 
 Encoder: | ResNet101             |  MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
-epochs | 34 | 193  
-Dice | 0.982 (0.984) | 0.980 (0.982)  
-loss | 0.040 (0.033) | 0.047 (0.038)  
+epochs (best of 200) | 177 | 198  
+Dice | 0.987 (0.988) | 0.986 (0.988)  
+loss | 0.029 (0.022) | 0.030 (0.024)  
 No. of parameters | 120 131 745 | 4 682 912  
 
 ResNet101 evaluation process:  
