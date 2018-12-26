@@ -179,12 +179,12 @@ class BCESoftJaccardDice:
         self.eps = eps
         self.mode = mode
 
-    def __call__(self, outputs, targets):
+    def __call__(self, outputs, targets):    
         loss = self.bce_weight * self.nll_loss(outputs, targets)
 
         if self.bce_weight < 1.:
             targets = (targets == 1).float()
-            outputs = torch.nn.functional.sigmoid(outputs)
+            outputs = torch.sigmoid(outputs)
             intersection = (outputs * targets).sum()
             union = outputs.sum() + targets.sum()
             if self.mode == "dice":
@@ -226,9 +226,9 @@ class Trainer:
             kwargs = pickle.load(open(path+"/model_params.pickle.dat", "rb"))
             kwargs["device_idx"] = gpu
             kwargs["pretrained"] = False
-            kwargs["directory"] = "/".join(path.split("/")[:-1])
              
         self.model_name = kwargs["model_name"]
+        self.model_type = kwargs["model"].lower()
         self.directory = kwargs["directory"]
         self.path = os.path.join(self.directory, self.model_name)
         self.device_idx = kwargs["device_idx"]
@@ -248,10 +248,10 @@ class Trainer:
             if k in ["Dropout", "pretrained", "num_classes", "num_filters"]
         }
 
-        if kwargs["model"] == "mobilenetV2":
+        if self.model_type == "mobilenetv2":
             self.initial_model = UnetMobilenetV2(**net_init_params)
         else:
-            net_init_params["model"] = kwargs["model"]
+            net_init_params["model"] = self.model_type
             self.initial_model = UnetResNet(**net_init_params)            
        
         if kwargs["reset"]:
@@ -316,6 +316,8 @@ class Trainer:
             current_lr = learning_rate * (lr_mult**it)
 
             y_pred = self.model(Variable(image))
+            if self.model_type == "mobilenetv2":
+                y_pred = nn.functional.interpolate(y_pred, scale_factor=2, mode='bilinear', align_corners=True)
 
             loss_fn = BCESoftJaccardDice(bce_weight=bce_loss_weight, 
                                          weight=mask_w.cuda(self.device_idx), mode="dice", eps=1.)
@@ -375,7 +377,7 @@ class Trainer:
         torch.cuda.empty_cache()
         self.model = self.get_model(self.initial_model)
         
-        if self.pretrained and self.freeze_encoder:
+        if self.pretrained and self.freeze_encoder and self.model_type != "mobilenetv2":
             self.dfs_freeze(self.model.conv1)
             self.dfs_freeze(self.model.conv2)
             self.dfs_freeze(self.model.conv3)
@@ -397,14 +399,15 @@ class Trainer:
         current_rate = learning_rate
         
         checkpoint_metric, checkpoint_loss, it, k, cooldown = -np.inf, np.inf, 0, 1, 0
-        x = np.arange(early_stop)
-        x = (x - x.mean()) / x.std()
+        if early_stop:
+            x = np.arange(early_stop)
+            x = (x - x.mean()) / x.std()
         self.history = {"loss":{"train":[], "test":[]}, "metric":{"train":[], "test":[]}}
         
         for e in range(epoch):
             torch.cuda.empty_cache()
                     
-            if e >= 2 and self.freeze_encoder:
+            if e >= 2 and self.freeze_encoder and self.model_type != "mobilenetv2":
                 self.freeze_encoder = False
                 self.dfs_freeze(self.model.conv1)
                 self.dfs_freeze(self.model.conv2)
@@ -456,6 +459,8 @@ class Trainer:
                                                                  lr=current_rate, momentum=0.9, nesterov=True)
 
                 y_pred = self.model(Variable(image))
+                if self.model_type == "mobilenetv2":
+                    y_pred = nn.functional.interpolate(y_pred, scale_factor=2, mode='bilinear', align_corners=True)
 
                 loss_fn = BCESoftJaccardDice(bce_weight=bce_loss_weight, 
                                              weight=mask_w.cuda(self.device_idx), mode="dice", eps=1.)
@@ -487,6 +492,8 @@ class Trainer:
                 image = image.cuda(self.device_idx)
 
                 y_pred = self.model(Variable(image))
+                if self.model_type == "mobilenetv2":
+                    y_pred = nn.functional.interpolate(y_pred, scale_factor=2, mode='bilinear', align_corners=True)
                 
                 loss_fn = BCESoftJaccardDice(bce_weight=bce_loss_weight, 
                                              weight=mask_w.cuda(self.device_idx), mode="dice", eps=1.)
@@ -573,7 +580,10 @@ class Trainer:
                 img = img.type(torch.FloatTensor).cuda(self.device_idx)
             else:
                 img = img.type(torch.FloatTensor)
-            output = torch.nn.functional.sigmoid(self.model(Variable(img)))
+            output = self.model(Variable(img))
+            if self.model_type == "mobilenetv2":
+                output = nn.functional.interpolate(output, scale_factor=2, mode='bilinear', align_corners=True)
+            output = torch.sigmoid(output)
             output = output.cpu().data.numpy()
             y_pred = np.squeeze(output[0])
             y_pred = remove_small_holes(remove_small_objects(y_pred > .3))

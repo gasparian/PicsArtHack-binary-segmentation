@@ -138,6 +138,9 @@ class UnetResNet(nn.Module):
 
         return self.final(dec0)
 
+import math
+from torch import cat
+
 ###########################################################################
 # Mobile Net
 ###########################################################################
@@ -271,27 +274,14 @@ class MobileNetV2(nn.Module):
                 m.bias.data.zero_()
 
 class UnetMobilenetV2(nn.Module):
-
     def __init__(self, num_classes=1, num_filters=32, pretrained=True,
                  Dropout=.2, path='./data/mobilenet_v2.pth.tar'):
-        
         super(UnetMobilenetV2, self).__init__()
+        
         self.encoder = MobileNetV2(n_class=1000)
-        if pretrained:
-            state_dict = torch.load(path)
-            self.encoder.load_state_dict(state_dict)
         
         self.num_classes = num_classes
-        self.Dropout = Dropout
-        self.pool = nn.MaxPool2d(2, 2)
-        self.relu = nn.ReLU(inplace=True)
-        
-        self.conv1 = self.encoder.features[:2]
-        self.conv2 = self.encoder.features[2:4]
-        self.conv3 = self.encoder.features[4:7]
-        self.conv4 = self.encoder.features[7:14]
-        self.conv5 = self.encoder.features[14:19]
-        
+
         self.dconv1 = nn.ConvTranspose2d(1280, 96, 4, padding=1, stride=2)
         self.invres1 = InvertedResidual(192, 96, 1, 6)
 
@@ -305,34 +295,73 @@ class UnetMobilenetV2(nn.Module):
         self.invres4 = InvertedResidual(32, 16, 1, 6)
 
         self.conv_last = nn.Conv2d(16, 3, 1)
+
         self.conv_score = nn.Conv2d(3, 1, 1)
-        
-        self.dropout_2d = nn.Dropout2d(p=self.Dropout)
-        self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
-        
 
-    def forward(self, x, z=None):
-        conv1 = self.conv1(x)
-        conv2 = self.dropout_2d(self.conv2(conv1))
-        conv3 = self.dropout_2d(self.conv3(conv2))
-        conv4 = self.dropout_2d(self.conv4(conv3))
-        conv5 = self.dropout_2d(self.conv5(conv4))
-        
-        dec5 = cat([conv4, self.dconv1(conv5)], dim=1)
-        dec5 = self.invres1(dec5)
-        
-        dec4 = cat([conv3, self.dconv2(dec5)], dim=1)
-        dec4 = self.invres2(dec4)
+        self._init_weights()
+        if pretrained:
+            state_dict = torch.load(path)
+            self.encoder.load_state_dict(state_dict)
 
-        dec3 = cat([conv2, self.dconv3(dec4)], dim=1)
-        dec3 = self.invres3(dec3)
+    def forward(self, x):
+        for n in range(0, 2):
+            x = self.encoder.features[n](x)
+        x1 = x
 
-        dec2 = cat([conv1, self.dconv4(dec3)], dim=1)
-        dec2 = self.invres4(dec2)
-        dec2 = self.dropout_2d(dec2)
+        for n in range(2, 4):
+            x = self.encoder.features[n](x)
+        x2 = x
 
-        dec1 = self.conv_last(dec2)
-        dec0 = self.conv_score(dec1)
-        dec0 = self.upsample(dec0)
+        for n in range(4, 7):
+            x = self.encoder.features[n](x)
+        x3 = x
+
+        for n in range(7, 14):
+            x = self.encoder.features[n](x)
+        x4 = x
+
+        for n in range(14, 19):
+            x = self.encoder.features[n](x)
+        x5 = x
         
-        return dec0
+        up1 = torch.cat([
+            x4,
+            self.dconv1(x)
+        ], dim=1)
+        up1 = self.invres1(up1)
+
+        up2 = torch.cat([
+            x3,
+            self.dconv2(up1)
+        ], dim=1)
+        up2 = self.invres2(up2)
+
+        up3 = torch.cat([
+            x2,
+            self.dconv3(up2)
+        ], dim=1)
+        up3 = self.invres3(up3)
+
+        up4 = torch.cat([
+            x1,
+            self.dconv4(up3)
+        ], dim=1)
+        up4 = self.invres4(up4)
+        x = self.conv_last(up4)
+        x = self.conv_score(x)
+
+        return x
+
+    def _init_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+                if m.bias is not None:
+                    m.bias.data.zero_()
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+            elif isinstance(m, nn.Linear):
+                m.weight.data.normal_(0, 0.01)
+                m.bias.data.zero_()
