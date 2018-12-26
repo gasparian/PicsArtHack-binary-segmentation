@@ -40,7 +40,7 @@ No. of parameters | 120 131 745 | 4 682 912
 ResNet101 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_metric.png">  
 MobileNetV2 evaluation process:  
-<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mbv2_metric.png">  
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_metric.png">  
 
 ### 3. Tests  
 Inference time comparison with input images 320x256 from the test-set:  
