@@ -49,7 +49,7 @@ MobileNetV2 evaluation process:
 Despite the fact that mobilenetV2 has ~x26 less weights and at the same time we are able to get models with pretty similar quality, we did it **with this particullar problem using mentioned dataset**.  
 
 ### 3. Tests  
-Inference time comparison with input images 320x256 from the test-set:  
+Inference time comparison on my work-station with input images 320x256 from the test-set:  
 
 Device | ResNet101 | MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
