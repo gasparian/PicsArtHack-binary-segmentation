@@ -1,7 +1,7 @@
 # PicsArtHack-binary-segmentation
 
 The goal of the hackathon was to build some image processing alogrithm which can be helpful for [PicsArt](https://picsart.com/?hl=en) applications.  
-Here I publish results of the first stage: segmenting people on photos.
+Here I publish results of the first stage: segmenting people on selfies.
 PicsArt gives us labeled [dataset](https://drive.google.com/file/d/1_e2DcZnjufx35uSmQElN5mpdo-Rlv7ZI/view?usp=sharing). [Dice](https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient) coef. was used as evaluation metric.  
 I noticed that a lot of images has been labeled by another segmentation model due to a lot of artifacts around the masks borders. Also in test dataset apperas copies of train set images. So after training, I did not expect good results on images "from the wild".
 
@@ -22,11 +22,15 @@ def get_mask_weight(mask):
 On the picture below we can see how input data looks like:    
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/example_1.png">  
 ### 2. Training  
-I used modification of **unet** (which is well recommended in binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. My goal was to compare the performance of "heavy" and "light" encoders (actually in the case of mobilenet, depthwise-separable convolutions were used in decoder too).  
-You can check all training params inside `train.py`, but I want to point a couple things:
- - In the case of training large models I freeze pretrained encoder's weights during the first two epochs to tune decoder weights only to decrease convergence time;
- - data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) library;
- - Inside the `utils.py` code you can find learning rate scheduling, early stopping and some other useful hacks which can help to train networks in more efficient way.  
+I used modification of **unet** (which is well recommended in binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. My goal was to compare the performance of "heavy" and "light" encoders.  
+You can check all training params inside `train.py`.
+
+```
+python3 predict.py -p ./test --model_path ./models/mobilenetV2_model --gpu -1 --frame_rate 12 --denoise_borders --biggest_side 320
+```
+
+Data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) library;
+Inside the `utils.py` code you can find learning rate scheduling, encoder freezeing and some other useful hacks which can help to train networks in more efficient way.  
 
 So in the end I've got two trained models with close metric values on a validation set. Here is a few numbers:    
 
@@ -41,6 +45,8 @@ ResNet101 evaluation process:
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/resnet101_metric.png">  
 MobileNetV2 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_metric.png">  
+
+I want to point that we are able to get **on this particullar dataset with the same validation set**  
 
 ### 3. Tests  
 Inference time comparison with input images 320x256 from the test-set:  
@@ -59,7 +65,7 @@ Original | Trnasformed
 :-------------------------:|:-------------------------:
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_3_orig_mask.png"> | <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_3_edited_mask.png">  
 
-Additionaly we can transform segmented images, for instance make a gaussian blur of a background:
+Additionaly we can transform segmented images. For instance let's make a gaussian blur of a background:
 ```
 blurred = cv2.GaussianBlur(test_dataset[n],(21,21),0)
 dst = cv2.bitwise_and(blurred, blurred, mask=~out[0][:, :, -1])
@@ -67,11 +73,15 @@ dst = cv2.add(cv2.bitwise_and(test_dataset[n], test_dataset[n], mask=out[0][:, :
 ```
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_orig.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_transformed.png">  <img src="https://github.com/gasparian/PicsArtHack-binary-segmentation/blob/master/pics/girl_ex_orig.png">  <img src="https://github.com/gasparian/PicsArtHack-binary-segmentation/blob/master/pics/girl_ex_blured.png">  
 
-And actually we can process videos too (see `predict.py`). Example below is a video made by me with a cellphone (img. size: 800x450):  
+And actually we can process videos too (see `predict.py`). Example below is a video made by me with a cellphone (original image size: 800x450):  
 
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>  
 
 These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing).  
+
+```
+python3 predict.py -p ./test --model_path ./models/mobilenetV2_model --gpu -1 --frame_rate 12 --denoise_borders --biggest_side 320
+```
 
 ### 4. Porting model to IOS device  
 --IN PROGRESS--
