@@ -11,7 +11,7 @@ import cv2
 
 from utils import *
 
-# python3 predict.py -p ./test --model_path ./models/mobilenetV2_05BCE_no_CLR_200e_ADAM_weight --gpu -1 --frame_rate 12 --denoise_borders --biggest_side 320
+# python3 predict.py -p ./test --model_path ./models/mobilenetV2_model --gpu -1 --frame_rate 12 --denoise_borders --biggest_side 320
 
 start = time.time()
 
