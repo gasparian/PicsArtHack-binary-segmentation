@@ -11,28 +11,28 @@ For this problem I used fairly common bce-dice loss. So the algorithm is simple:
 dice_loss = (2. * intersection + eps) / (union + eps)
 loss = w * BCELoss + (1 - w) * log(dice_loss) * (-1)
 ```  
-Also, after applying this loss, we don't need to tune tresholds of final pseudo-probabilities (after sigmoid).  
-Finally we can adjust weight on mask (I do it inside BCELoss), to penalize model for mistakes around the mask borders. For this purpose we can use opencv erosion kernel-operation:
+Also, in this case, we don't need to tune tresholds of final pseudo-probabilities (after sigmoid).  
+Finally we can adjust weights to the mask (I did it inside BCELoss), to penalize model for mistakes around the mask borders. For this purpose we can use opencv erosion kernel-operation:
 ```
 def get_mask_weight(mask):
     mask_ = cv2.erode(mask, kernel=np.ones((8,8),np.uint8), iterations=1)
     mask_ = mask-mask_
     return mask_ + 1
 ```  
-On the picture below we can see how input data looks like:    
+On the picture below we can see how the input data looks like:    
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/example_1.png">  
 ### 2. Training  
-I used modification of **unet** (which is well recommended in binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. One of the goals was to compare the performance of "heavy" and "light" encoders.  
+I used modification of **unet** (which is well recommended for solving binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. One of the goals was to compare the performance of "heavy" and "light" encoders.  
 You can check all training params inside `train.py`.
 
 ```
-python3 predict.py -p ./test --model_path ./models/mobilenetV2_model --gpu -1 --frame_rate 12 --denoise_borders --biggest_side 320
+python3 train.py --train_path ./data/train_data --workdir ./data/  --model_type mobilenetV2
 ```
 
-Data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) library;
-Inside the `utils.py` code you can find learning rate scheduling, encoder freezeing and some other useful hacks which can help to train networks in more efficient way.  
+Data augmentation was provided via brilliant [albumentaions](https://github.com/albu/albumentations) library.  
+Inside the `utils.py` code you can find learning rate scheduling, encoder weights freezeing and some other useful hacks which can help to train networks in more efficient way. Also passing the parameter `model_type` you are able to choose one of the predefined models based on: resnet18, resnet34, resnet50, resnet101, mobilenetV2. 
 
-So in the end I've got two trained models with close metric values on a validation set. Here is a few numbers:    
+So, in the end I've got two trained models with close Dice values on a validation set. Here is a few numbers:    
 
 Encoder: | ResNet101             |  MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
@@ -46,7 +46,7 @@ ResNet101 evaluation process:
 MobileNetV2 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_metric.png">  
 
-I want to point that we are able to get **on this particullar dataset with the same validation set**  
+I want to point that despite the fact that mobilenetV2 has ~x26 less weights and at the same time we are able to get models with pretty similar quality, we did it **with this particullar problem using mentioned dataset**. So I don't recommend to extend these results to other classification problems.
 
 ### 3. Tests  
 Inference time comparison with input images 320x256 from the test-set:  
@@ -77,14 +77,18 @@ And actually we can process videos too (see `predict.py`). Example below is a vi
 
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>  
 
-These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1mMtNNPRvc7DVC-Ozu2ne5cXaOrVNY7Dm/view?usp=sharing).  
+These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1XSRaOaoWKKSllIuUgkW0BVsMKieQ8mbG/view?usp=sharing).  
 
 ```
 python3 predict.py -p ./test --model_path ./models/mobilenetV2_model --gpu -1 --frame_rate 12 --denoise_borders --biggest_side 320
 ```
 
 ### 4. Porting model to IOS device  
---IN PROGRESS--
+Finally, we can convert trained mobilenetV2 model with CoreML to make inference on the IOS devices. To make this happen, don't keep encoder layers separatly inside the model class - use them in forward pass. Also, with the certain versions of torch, onnx and coreml (see `requirements.txt`), you can't convert upsampling / interpolation layers. Hope it will be fixed in the future releases.
+
+```
+python3 CoreML_convert.py --tmp_onnx ./models/tmp.onnx  --weights_path ./models/mobilenetV2_model/mobilenetV2_model_checkpoint_metric.pth
+```
 
 ### 5. Environment  
 For your own experiments I highly recommend to use [Deepo](https://github.com/ufoym/deepo) as a fast way to deploy universal deep-learning environment inside a Docker container.  Other dependencies can be found in `requirements.txt`.  
