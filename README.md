@@ -22,7 +22,7 @@ def get_mask_weight(mask):
 On the picture below we can see how input data looks like:    
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/example_1.png">  
 ### 2. Training  
-I used modification of **unet** (which is well recommended in binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. My goal was to compare the performance of "heavy" and "light" encoders.  
+I used modification of **unet** (which is well recommended in binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. One of the goals was to compare the performance of "heavy" and "light" encoders.  
 You can check all training params inside `train.py`.
 
 ```
