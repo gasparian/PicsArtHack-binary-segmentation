@@ -82,6 +82,7 @@ These results has been obtained with mobilenetV2 model. You can play with it too
 ```
 python3 predict.py -p ./test --model_path ./models/mobilenetV2_model --gpu -1 --frame_rate 12 --denoise_borders --biggest_side 320
 ```
+This script reads all the data inside `-p` folder: both pictures and videos.
 
 ### 4. Porting model to IOS device  
 Finally, we can convert trained mobilenetV2 model with CoreML to make inference on the IOS devices. To make this happen, don't keep encoder layers separatly inside the model class - use them in forward pass. Also, with the certain versions of torch, onnx and coreml (see `requirements.txt`), you can't convert upsampling / interpolation layers. Hope it will be fixed in the future releases.
