@@ -36,7 +36,7 @@ So in the end I've got two trained models with close metric values on a validati
 
 Encoder: | ResNet101             |  MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
-epochs (best of 200) | 177 | 198  
+epochs (best of 200) | 177 | 173  
 Dice | 0.987 (0.988) | 0.986 (0.988)  
 loss | 0.029 (0.022) | 0.030 (0.024)  
 No. of parameters | 120 131 745 | 4 682 912  
