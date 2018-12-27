@@ -225,12 +225,14 @@ class Trainer:
         if path is not None:
             kwargs = pickle.load(open(path+"/model_params.pickle.dat", "rb"))
             kwargs["device_idx"] = gpu
-            kwargs["pretrained"] = False
-             
+            kwargs["pretrained"], kwargs["reset"] = False, False
+            self.path = path
+        else:
+            self.directory = kwargs["directory"]
+            self.path = os.path.join(self.directory, self.model_name)
+
         self.model_name = kwargs["model_name"]
-        self.model_type = kwargs["model"].lower()
-        self.directory = kwargs["directory"]
-        self.path = os.path.join(self.directory, self.model_name)
+        self.model_type = kwargs["model"].lower()        
         self.device_idx = kwargs["device_idx"]
         self.cpu = True if self.device_idx < 0 else False
         self.ADAM = kwargs["ADAM"]
@@ -406,6 +408,7 @@ class Trainer:
         
         for e in range(epoch):
             torch.cuda.empty_cache()
+            self.model.train()
                     
             if e >= 2 and self.freeze_encoder and self.model_type != "mobilenetv2":
                 self.freeze_encoder = False
@@ -487,6 +490,7 @@ class Trainer:
 
             dataset_val.clear_buff()
             torch.cuda.empty_cache()
+            self.model.eval()
             val_loss, val_metric = [], []
             for image, mask, mask_w in data.DataLoader(dataset_val, batch_size = batch_size // 2, shuffle = False, num_workers=0):
                 image = image.cuda(self.device_idx)

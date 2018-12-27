@@ -298,10 +298,13 @@ class UnetMobilenetV2(nn.Module):
 
         self.conv_score = nn.Conv2d(3, 1, 1)
 
-        self._init_weights()
+        #doesn't needed; obly for compatibility
+        self.dconv_final = nn.ConvTranspose2d(1, 1, 4, padding=1, stride=2)
+
         if pretrained:
             state_dict = torch.load(path)
             self.encoder.load_state_dict(state_dict)
+        else: self._init_weights()
 
     def forward(self, x):
         for n in range(0, 2):
