@@ -65,7 +65,7 @@ blurred = cv2.GaussianBlur(test_dataset[n],(21,21),0)
 dst = cv2.bitwise_and(blurred, blurred, mask=~out[0][:, :, -1])
 dst = cv2.add(cv2.bitwise_and(test_dataset[n], test_dataset[n], mask=out[0][:, :, -1]), dst)
 ```
-<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_orig.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_transformed.png">  
+<img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_orig.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_2_transformed.png">  <img src="https://github.com/gasparian/PicsArtHack-binary-segmentation/blob/master/pics/girl_ex_orig.png">  <img src="https://github.com/gasparian/PicsArtHack-binary-segmentation/blob/master/pics/girl_ex_blured.png">  
 
 And actually we can process videos too (see `predict.py`). Example below is a video made by me with a cellphone (img. size: 800x450):  
 
