@@ -53,8 +53,8 @@ Inference time comparison on my work-station with input images 320x256 from the 
 
 Device | ResNet101 | MobileNetV2  
 :-------------------------:|:-------------------------:|:-------------------------:  
-AMD Threadripper 1900X CPU (1 thread) | 2.19 s ± 10.2 ms | 439 ms ± 4.39 ms  
-GTX 1080Ti GPU | 44.9 ms ± 2 ms | 28.8 ms ± 2.86 ms  
+AMD Threadripper 1900X CPU (4 threads) | 2.08 s ± 7.58 ms | 345 ms ± 3.21 ms  
+GTX 1080Ti GPU | 31.6 ms ± 897 µs | 22 ms ± 622 µs  
 
 Often, output masks contain some noise on the borders (which is become more annoying on large images), so we can try to fix it applying morhological transform: 
 ```
