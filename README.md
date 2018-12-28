@@ -61,7 +61,7 @@ Often, output masks contain some noise on the borders (which is become more anno
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
 y_pred[:, :, -1] = cv2.morphologyEx(y_pred[:, :, -1], cv2.MORPH_OPEN, kernel)
 ```  
-Original | Trnasformed  
+Original | Transformed  
 :-------------------------:|:-------------------------:
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_3_orig_mask.png"> | <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/ex_3_edited_mask.png">  
 
