@@ -46,7 +46,7 @@ ResNet101 evaluation process:
 MobileNetV2 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_metric.png">  
 
-Despite the fact that mobilenetV2 has ~x26 less weights and at the same time we are able to get models with pretty similar quality, we did it **with this particullar problem using mentioned dataset**.  
+Despite the fact that mobilenetV2 has ~x26 less weights and at the same time we are able to get models with pretty similar quality, we did it **with this particullar problem using this particullar dataset**.  
 
 ### 3. Tests  
 Inference time comparison on my work-station with input images 320x256 from the test-set:  
