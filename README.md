@@ -77,7 +77,7 @@ And actually we can process videos too (see `predict.py`). Example below is a vi
 
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_orig.gif" height=384>  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/VID_edited.gif" height=384>  
 
-These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights](https://drive.google.com/file/d/1XSRaOaoWKKSllIuUgkW0BVsMKieQ8mbG/view?usp=sharing).  
+These results has been obtained with mobilenetV2 model. You can play with it too, here is it's [weights and CoreML models](https://drive.google.com/file/d/1XSRaOaoWKKSllIuUgkW0BVsMKieQ8mbG/view?usp=sharing).  
 
 ```
 python3 predict.py -p ./test --model_path ./models/mobilenetV2_model --gpu -1 --frame_rate 12 --denoise_borders --biggest_side 320
