@@ -22,7 +22,7 @@ def get_mask_weight(mask):
 On the picture below we can see how the input data looks like:    
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/example_1.png">  
 ### 2. Training  
-I used modification of **unet** (which is well recommended for solving binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and mobilenetV2. One of the goals was to compare the performance of "heavy" and "light" encoders.  
+I used modification of **unet** (which is well recommended for solving binary semantic segmentation problems) with two encoders pretrained on Imagenet: resnet101 and [mobilenetV2](https://github.com/tonylins/pytorch-mobilenet-v2). One of the goals was to compare the performance of "heavy" and "light" encoders.  
 You can check all training params inside `train.py`.
 
 ```
@@ -46,7 +46,7 @@ ResNet101 evaluation process:
 MobileNetV2 evaluation process:  
 <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_loss.png">  <img src="https://github.com/gasparian/PicsArt-Hack-binary_segmentation/blob/master/pics/mobilenetV2_metric.png">  
 
-Despite the fact that mobilenetV2 has ~x26 less weights and at the same time we are able to get models with pretty similar quality, we did it **with this particullar problem using this particullar dataset**.  
+Despite the fact that mobilenetV2 has ~x26 less weights and at the same time we are able to get models with pretty similar quality, we did it **with this particullar problem using this particullar dataset**. So I don't think it extends on any other classification problem.
 
 ### 3. Tests  
 Inference time comparison on my work-station with input images 320x256 from the test-set:  
