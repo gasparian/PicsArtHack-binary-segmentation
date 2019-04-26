@@ -213,11 +213,6 @@ def get_metric(pred, targets):
         metric.append(m)
     return np.mean(metric)
 
-def leastsq(x, y):
-    y = (y - np.mean(y)) / np.std(y)
-    a = np.vstack([x, np.ones(len(x))]).T
-    return np.dot(np.linalg.inv(np.dot(a.T, a)), np.dot(a.T, y))
-
 class Trainer:
     
     def __init__(self, path=None, gpu=-1, **kwargs):
@@ -373,7 +368,6 @@ class Trainer:
         reduce_lr_patience = kwargs["reduce_lr_patience"]
         reduce_lr_factor = kwargs["reduce_lr_factor"]
         max_lr_decay = kwargs["max_lr_decay"]
-        early_stop = kwargs["early_stop"]
         self.freeze_encoder = kwargs["freeze_encoder"]
 
         torch.cuda.empty_cache()
@@ -401,9 +395,6 @@ class Trainer:
         current_rate = learning_rate
         
         checkpoint_metric, checkpoint_loss, it, k, cooldown = -np.inf, np.inf, 0, 1, 0
-        if early_stop:
-            x = np.arange(early_stop)
-            x = (x - x.mean()) / x.std()
         self.history = {"loss":{"train":[], "test":[]}, "metric":{"train":[], "test":[]}}
         
         for e in range(epoch):
@@ -527,16 +518,6 @@ class Trainer:
             message = "Epoch: %d, Train loss: %.3f, Train metric: %.3f, Val loss: %.3f, Val metric: %.3f" % (
                 e, train_loss, train_metric, val_loss, val_metric)
             print(message); os.system("echo " + message)
-            
-            if early_stop and e >= early_stop:
-                wlv, _ = np.round(leastsq(x, self.history["loss"]["test"][-early_stop:]), 4)
-                wlt, _ = np.round(leastsq(x, self.history["loss"]["train"][-early_stop:]), 4)
-                wmv, _ = np.round(leastsq(x, self.history["metric"]["test"][-early_stop:]), 4)
-                wmt, _ = np.round(leastsq(x, self.history["metric"]["train"][-early_stop:]), 4)
-                if wlv > 0 and wlt < 0 and wmt > 0 and wmv < 0:
-                    message = " [INFO] Learning stopped at %s# epoch! " % e
-                    print(message); os.system("echo " + message)
-                    break
                     
             self.current_epoch = e
             save_checkpoint(self.path+'/last_checkpoint.pth', self.model, self.optimizer)
