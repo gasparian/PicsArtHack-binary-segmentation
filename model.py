@@ -1,26 +1,22 @@
+import math
+
 import torch
 from torch import nn, cat
 import torchvision
-import math
 
 def conv3x3(in_, out):
     return nn.Conv2d(in_, out, 3, padding=1)
 
 class ConvRelu(nn.Module):
-    def __init__(self, in_: int, out: int, activate=True, batchnorm=False):
+    def __init__(self, in_: int, out: int, activate=True):
         super(ConvRelu, self).__init__()
         self.activate = activate
-        self.batchnorm = batchnorm
         self.conv = conv3x3(in_, out)
-        self.bn = nn.BatchNorm2d(out)
         self.activation = nn.ReLU(inplace=True)
 
     def forward(self, x):
         x = self.conv(x)
         if self.activate:
-            if self.batchnorm:
-                #x = self.bn(x)
-                pass
             x = self.activation(x)
         return x
 
@@ -29,21 +25,16 @@ class ResidualBlock(nn.Module):
     def __init__(self, in_channels: int, num_filters: int, batch_activate=False):
         super(ResidualBlock, self).__init__()
         self.batch_activate = batch_activate
-        self.bn_rb_1 = nn.BatchNorm2d(in_channels)
-        self.bn_rb_2 = nn.BatchNorm2d(num_filters)
         self.activation = nn.ReLU(inplace=True)
-        self.conv_block = ConvRelu(in_channels, num_filters, activate=True, batchnorm=True)
-        self.conv_block_na = ConvRelu(in_channels, num_filters, activate=False, batchnorm=False)
+        self.conv_block = ConvRelu(in_channels, num_filters, activate=True)
+        self.conv_block_na = ConvRelu(in_channels, num_filters, activate=False)
         self.activation = nn.ReLU(inplace=True)
         
     def forward(self, inp):
-#         x = self.bn_rb_1(inp)
-#         x = self.activation(x)
         x = self.conv_block(inp)
         x = self.conv_block_na(x)
         x = x.add(inp)
         if self.batch_activate:
-            #x = self.bn_rb_2(x)
             x = self.activation(x)
         return x
 
@@ -58,7 +49,7 @@ class DecoderBlockResnet(nn.Module):
         self.in_channels = in_channels
 
         self.block = nn.Sequential(
-            ConvRelu(in_channels, middle_channels, activate=True, batchnorm=False),
+            ConvRelu(in_channels, middle_channels, activate=True),
             nn.ConvTranspose2d(middle_channels, out_channels, kernel_size=4, stride=2, padding=1),
             nn.ReLU(inplace=True)
         )
@@ -137,9 +128,6 @@ class UnetResNet(nn.Module):
         dec0 = self.dec0(dec1)
 
         return self.final(dec0)
-
-import math
-from torch import cat
 
 ###########################################################################
 # Mobile Net
