@@ -4,14 +4,11 @@ import torch
 from torch import nn, cat
 import torchvision
 
-def conv3x3(in_, out):
-    return nn.Conv2d(in_, out, 3, padding=1)
-
 class ConvRelu(nn.Module):
     def __init__(self, in_: int, out: int, activate=True):
         super(ConvRelu, self).__init__()
         self.activate = activate
-        self.conv = conv3x3(in_, out)
+        self.conv = nn.Conv2d(in_, out, 3, padding=1)
         self.activation = nn.ReLU(inplace=True)
 
     def forward(self, x):
