@@ -166,14 +166,14 @@ def load_checkpoint(checkpoint_path, model, optimizer, cpu):
     print('model loaded from %s' % checkpoint_path)
 
 def jaccard(intersection, union, eps=1e-15):
-    return (intersection + eps) / (union - intersection + eps)
+    return (intersection) / (union - intersection + eps)
 
 def dice(intersection, union, eps=1e-15):
-    return (2. * intersection + eps) / (union + eps)
+    return (2. * intersection) / (union + eps)
 
 class BCESoftJaccardDice:
 
-    def __init__(self, bce_weight=0.5, mode="dice", eps=1e-15, weight=None):
+    def __init__(self, bce_weight=0.5, mode="dice", eps=1e-7, weight=None):
         self.nll_loss = torch.nn.BCEWithLogitsLoss(weight=weight)
         self.bce_weight = bce_weight
         self.eps = eps
@@ -457,7 +457,7 @@ class Trainer:
                     y_pred = nn.functional.interpolate(y_pred, scale_factor=2, mode='bilinear', align_corners=True)
 
                 loss_fn = BCESoftJaccardDice(bce_weight=bce_loss_weight, 
-                                             weight=mask_w.cuda(self.device_idx), mode="dice", eps=1.)
+                                             weight=mask_w.cuda(self.device_idx), mode="dice")
                 loss = loss_fn(y_pred, Variable(mask.cuda(self.device_idx)))
 
                 self.optimizer.zero_grad()
