@@ -168,16 +168,17 @@ def load_checkpoint(checkpoint_path, model, optimizer, cpu):
 def jaccard(intersection, union, eps=1e-15):
     return (intersection) / (union - intersection + eps)
 
-def dice(intersection, union, eps=1e-15):
-    return (2. * intersection) / (union + eps)
+def dice(intersection, union, eps=1e-15, smooth=1.):
+    return (2. * intersection + smooth) / (union + smooth + eps)
 
 class BCESoftJaccardDice:
 
-    def __init__(self, bce_weight=0.5, mode="dice", eps=1e-7, weight=None):
+    def __init__(self, bce_weight=0.5, mode="dice", eps=1e-7, weight=None, smooth=1.):
         self.nll_loss = torch.nn.BCEWithLogitsLoss(weight=weight)
         self.bce_weight = bce_weight
         self.eps = eps
         self.mode = mode
+        self.smooth = smooth
 
     def __call__(self, outputs, targets):    
         loss = self.bce_weight * self.nll_loss(outputs, targets)
@@ -188,7 +189,7 @@ class BCESoftJaccardDice:
             intersection = (outputs * targets).sum()
             union = outputs.sum() + targets.sum()
             if self.mode == "dice":
-                score = dice(intersection, union, self.eps)
+                score = dice(intersection, union, self.eps, self.smooth)
             elif self.mode == "jaccard":
                 score = jaccard(intersection, union, self.eps)
             loss -= (1 - self.bce_weight) * torch.log(score)
